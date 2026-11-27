@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="BYB立替">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{color-scheme:light; padding-top:env(safe-area-inset-top, 0px); padding-bottom:env(safe-area-inset-bottom, 0px)}
 body{margin:0; font:14px system-ui, sans-serif}
@@ -20,20 +20,20 @@ img{max-width:100%}
 :root{
   --bg:#F1F4F2; --surface:#FFFFFF; --surface-2:#E8EDEA; --line:#D3DBD7;
   --ink:#16211C; --muted:#56655E;
-  --accent:#23478F; --accent-ink:#FFFFFF; --accent-soft:#E3EAF8;
+  --accent:#23478F; --accent-ink:#FFFFFF; --accent-soft:#E3EAF8; --link:#1B5FD6;
   --ok:#1B7248; --ok-soft:#DFF1E6;
   --warn:#8F5200; --warn-soft:#FBEACB;
   --bad:#AE2A22; --bad-soft:#FADFDC;
   --s1:#257de0; --s2:#f47230; --s3:#00b894; --s4:#f2a600; --s5:#ee7fac; --s6:#008a17; --s7:#6a4ce2; --s8:#ec4647;
   --sx:#b8b8b8; --sx-ink:#0b0b0b; --s4-ink:#0b0b0b;
-  --font-ui:"IBM Plex Sans JP","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --font-ui:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
   --font-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0E1411; --surface:#161F1B; --surface-2:#1F2B26; --line:#2B3A33;
     --ink:#E6EDE9; --muted:#9AAAA2;
-    --accent:#8CAEF2; --accent-ink:#0A1730; --accent-soft:#1A2A4A;
+    --accent:#8CAEF2; --accent-ink:#0A1730; --accent-soft:#1A2A4A; --link:#8DB5FF;
     --ok:#6FCB99; --ok-soft:#173225;
     --warn:#EDB35B; --warn-soft:#3A2C12;
     --bad:#F2887F; --bad-soft:#3E1D1A;
@@ -45,7 +45,7 @@ img{max-width:100%}
 :root[data-theme="dark"]{
   --bg:#0E1411; --surface:#161F1B; --surface-2:#1F2B26; --line:#2B3A33;
   --ink:#E6EDE9; --muted:#9AAAA2;
-  --accent:#8CAEF2; --accent-ink:#0A1730; --accent-soft:#1A2A4A;
+  --accent:#8CAEF2; --accent-ink:#0A1730; --accent-soft:#1A2A4A; --link:#8DB5FF;
   --ok:#6FCB99; --ok-soft:#173225;
   --warn:#EDB35B; --warn-soft:#3A2C12;
   --bad:#F2887F; --bad-soft:#3E1D1A;
@@ -55,17 +55,17 @@ img{max-width:100%}
 }
 *{box-sizing:border-box}
 body{
-  background:var(--bg); color:var(--ink); font-family:var(--font-ui); font-size:15px; line-height:1.6;
+  background:var(--bg); color:var(--ink); font-family:var(--font-ui); font-size:15px; font-weight:500; line-height:1.6; letter-spacing:.01em;
   padding-left:max(16px, env(safe-area-inset-left, 0px));
   padding-right:max(16px, env(safe-area-inset-right, 0px));
   -webkit-text-size-adjust:100%;
 }
 .wrap{max-width:720px; margin:0 auto; padding-block:20px 96px}
 h1,h2,h3,h4,p,ul{margin:0}
-h1{font-size:1.35rem; font-weight:600; line-height:1.3; text-wrap:balance}
-h2{font-size:1.1rem; font-weight:600; text-wrap:balance}
-h3{font-size:1.05rem; font-weight:600}
-h4{font-size:.9rem; font-weight:600; color:var(--muted)}
+h1{font-size:1.45rem; font-weight:900; letter-spacing:.04em; line-height:1.3; text-wrap:balance}
+h2{font-size:1.1rem; font-weight:900; text-wrap:balance}
+h3{font-size:1.05rem; font-weight:900}
+h4{font-size:.9rem; font-weight:700; color:var(--muted)}
 button,input,select{font:inherit; color:inherit}
 
 .top{display:flex; align-items:center; gap:14px}
@@ -85,7 +85,7 @@ button,input,select{font:inherit; color:inherit}
 .tabs{display:flex; gap:2px; margin-block:18px 16px; border-bottom:1px solid var(--line); overflow-x:auto}
 .tab{
   appearance:none; background:none; border:0; border-bottom:3px solid transparent; margin-bottom:-1px;
-  padding:10px 16px; min-height:44px; white-space:nowrap; cursor:pointer; font-weight:500; color:var(--muted);
+  padding:10px 16px; min-height:44px; white-space:nowrap; cursor:pointer; font-weight:700; color:var(--muted);
 }
 .tab[aria-current="page"]{color:var(--ink); border-bottom-color:var(--accent)}
 .badge{
@@ -101,7 +101,7 @@ button,input,select{font:inherit; color:inherit}
 .empty strong{display:block; color:var(--ink); font-size:1rem; margin-bottom:4px}
 
 .field{display:grid; gap:6px; min-width:0; border:0; padding:0; margin:0}
-.field label, .field legend{font-size:.85rem; font-weight:500; color:var(--muted); padding:0}
+.field label, .field legend{font-size:.85rem; font-weight:700; color:var(--muted); padding:0}
 input[type=text], input[type=date], select{
   width:100%; min-height:46px; padding:0 12px; font-size:16px;
   background:var(--surface); border:1px solid var(--line); border-radius:10px;
@@ -132,7 +132,7 @@ td.desc{white-space:normal; min-width:16em}
 
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:46px; padding:0 18px;
-  background:var(--surface); border:1px solid var(--line); border-radius:10px; font-weight:500; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px; font-weight:700; cursor:pointer;
 }
 .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 .btn.small{min-height:36px; padding:0 12px; font-size:.85rem}
@@ -142,6 +142,12 @@ td.desc{white-space:normal; min-width:16em}
 .btn:disabled{opacity:.5; cursor:default}
 .btn-row{display:flex; flex-wrap:wrap; gap:8px}
 .addbox{margin-top:2px}
+.addbox summary{font-size:.9rem}
+.lnk{color:var(--link); text-decoration:underline; text-underline-offset:3px; font-weight:700}
+.bath{display:grid; gap:12px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
+.bath-sum{font-size:.9rem; font-weight:700; text-wrap:pretty}
+.bath-sum .bad{color:var(--bad)}
+.held{font:600 1.6rem/1.2 var(--font-num)}
 .addrow{display:flex; gap:8px; align-items:stretch}
 .addrow input{flex:1; min-width:0}
 .rows{list-style:none; padding:0; display:grid}
@@ -154,7 +160,7 @@ td.desc{white-space:normal; min-width:16em}
 
 .sum-card{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:8px 20px}
 .lbl{font-size:.85rem; color:var(--muted)}
-.big{font:500 2rem/1.2 var(--font-num); letter-spacing:-.01em}
+.big{font:600 2rem/1.2 var(--font-num); letter-spacing:-.01em}
 .sum-meta{display:flex; flex-wrap:wrap; gap:6px 16px; color:var(--muted); font-size:.85rem}
 
 .mgr-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
@@ -175,7 +181,7 @@ td.desc{white-space:normal; min-width:16em}
 .item .a{font:500 15px var(--font-num); text-align:right}
 .item-meta{display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-left:calc(3.2rem + 10px)}
 
-.pill{display:inline-flex; align-items:center; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:500; white-space:nowrap}
+.pill{display:inline-flex; align-items:center; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:700; white-space:nowrap}
 .pill.ok{background:var(--ok-soft); color:var(--ok)}
 .pill.warn{background:var(--warn-soft); color:var(--warn)}
 .pill.wait{background:var(--accent-soft); color:var(--accent)}
@@ -247,7 +253,6 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
     <div class="mark" aria-hidden="true"></div>
     <div>
       <h1>BYB 立替精算</h1>
-      <p class="lede">立替の金額とレシートの写真を記録して、返済までを管理します</p>
     </div>
   </header>
   <div id="status" class="status" role="status" hidden></div>
@@ -258,14 +263,11 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
   <main id="main">
     <section id="view-submit" class="panel" hidden>
       <form id="form" class="card stack" novalidate>
-        <div>
-          <h2>立替を登録</h2>
-          <p class="hint">登録すると会計係の画面に反映されます。紙のレシートは渡さなくて大丈夫です。</p>
-        </div>
+        <h2>立替を登録</h2>
         <div class="field">
           <label for="f-name">あなたの名前</label>
           <select id="f-name" class="name-sel"></select>
-          <details class="addbox"><summary>一覧にない場合は、名前を追加する</summary><div class="addrow"><input type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤"><button type="button" class="btn" data-act="addmember" data-self="1">追加</button></div></details>
+          <details class="addbox"><summary>一覧にない場合は、<span class="lnk">名前を追加する</span></summary><div class="addrow"><input type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤"><button type="button" class="btn" data-act="addmember" data-self="1">追加</button></div></details>
         </div>
         <div class="field">
           <label for="f-date">購入日</label>
@@ -275,15 +277,35 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
           <label for="f-acct">勘定科目</label>
           <select id="f-acct"></select>
         </div>
+        <div id="bath-box" class="bath" hidden>
+          <div class="field">
+            <label for="f-used">人数（使った銭湯券の枚数）</label>
+            <input id="f-used" type="text" inputmode="numeric" autocomplete="off" placeholder="例：14">
+            <p class="hint">金額とは別に、入浴した人数を必ず入れてください（1人1枚で数えます）。</p>
+          </div>
+          <div class="field">
+            <label for="f-bought">今回買った銭湯券</label>
+            <select id="f-bought">
+              <option value="0">買っていない（手持ちの券を使った）</option>
+              <option value="10">10枚（¥5,400）</option>
+              <option value="20">20枚（¥10,800）</option>
+              <option value="30">30枚（¥16,200）</option>
+              <option value="40">40枚（¥21,600）</option>
+              <option value="50">50枚（¥27,000）</option>
+            </select>
+            <p class="hint">銭湯券は10枚単位で買います。使わなかった券は、あなたが保管している扱いになります。</p>
+          </div>
+          <p id="bath-sum" class="bath-sum" aria-live="polite"></p>
+        </div>
         <div class="field">
           <label for="f-desc">摘要（何を買ったか）</label>
           <input id="f-desc" type="text" autocomplete="off" placeholder="例：テーピング、グリップ、ゴミ袋代">
         </div>
-        <div class="field">
+        <div class="field" id="amt-field">
           <label for="f-amount">金額（レシートの合計）</label>
           <div class="amt-wrap"><span aria-hidden="true">¥</span><input id="f-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="1280"></div>
         </div>
-        <fieldset class="field">
+        <fieldset class="field" id="rec-field">
           <legend>レシートの写真</legend>
           <div class="rec-actions">
             <button type="button" class="btn" id="b-cam">撮影する</button>
@@ -307,7 +329,7 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
       <div class="card field">
         <label for="m-name">あなたの名前</label>
         <select id="m-name" class="name-sel"></select>
-        <details class="addbox"><summary>一覧にない場合は、名前を追加する</summary><div class="addrow"><input type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤"><button type="button" class="btn" data-act="addmember" data-self="1">追加</button></div></details>
+        <details class="addbox"><summary>一覧にない場合は、<span class="lnk">名前を追加する</span></summary><div class="addrow"><input type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤"><button type="button" class="btn" data-act="addmember" data-self="1">追加</button></div></details>
       </div>
       <div id="mine-body" class="stack"></div>
     </section>
@@ -342,6 +364,10 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
           <button type="button" class="btn primary" id="b-copy">表をコピー</button>
         </div>
       </div>
+    </section>
+
+    <section id="view-tickets" class="panel" hidden>
+      <div id="tickets-body" class="stack"></div>
     </section>
 
     <section id="view-history" class="panel" hidden>
@@ -439,10 +465,11 @@ const state = {
   expenses: [], settlements: [], members: [], membersLoaded: false, teamTreasurers: [], loaded: {exp: false, set: false},
   tab: 'submit', myName: nk(lsGet('byb.name') || ''),
   confirm: null, busy: new Set(), photo: null, previewUrl: null, yearTouched: false, histYear: null, team: '', user: null,
-  d: null, ledgerRows: []
+  d: null, ledgerRows: [], autoAmt: null
 };
-const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', ledger: '記録', history: '履歴', admin: '管理'};
-const tabList = () => state.isOwner ? ['payout', 'submit', 'ledger', 'history', 'admin'] : ['submit', 'mine'];
+const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', admin: '管理'};
+const tabList = () => state.isOwner ? ['payout', 'tickets', 'ledger', 'history', 'admin'] : ['submit', 'mine'];
+const BATH = '銭湯代', BATH_UNIT = 540;
 const INITIAL_MEMBERS = ['門脇', '川田', '伊達', '児玉', '申', '鈴木', '田中', '富田'];
 const lower = x => String(x || '').trim().toLowerCase();
 
@@ -452,12 +479,19 @@ function normExpense(id, r){
   const amount = Math.round(Number(r.amount));
   const date = (typeof r.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) ? r.date : '';
   const manager = nk(r.manager);
-  if(!date || !Number.isFinite(amount) || amount <= 0 || !manager) return null;
+  const account = nk(r.account) || 'その他';
+  let bath = null;
+  if(account === BATH && r.bath && typeof r.bath === 'object'){
+    const bo = Math.round(Number(r.bath.bought)) || 0, us = Math.round(Number(r.bath.used)), un = Math.round(Number(r.bath.unit)) || BATH_UNIT;
+    if(Number.isFinite(us) && us > 0 && bo >= 0) bath = {bought: bo, used: us, unit: un};
+  }
+  if(!date || !Number.isFinite(amount) || amount < 0 || (amount === 0 && !bath) || !manager) return null;
   let receipt = null;
   if(r.receipt && typeof r.receipt === 'object'){
     if(r.receipt.kind === 'doc') receipt = {kind: 'doc'};
   }
-  return {id, date, amount, manager, account: nk(r.account) || 'その他', desc: nk(r.desc) || nk(r.purpose) || nk(r.note), receipt, createdAt: Number(r.createdAt) || 0};
+  return {id, date, amount, manager, account, bath, led: bath ? bath.used * bath.unit : amount,
+    desc: nk(r.desc) || nk(r.purpose) || nk(r.note), receipt, createdAt: Number(r.createdAt) || 0};
 }
 function normSettlement(id, r){
   if(!r || typeof r !== 'object' || !Array.isArray(r.expenseIds)) return null;
@@ -489,7 +523,15 @@ function derive(){
     if(!g){ g = {key: k, name: nk(name), unsettled: [], pending: [], done: []}; groups.set(k, g); }
     return g;
   };
-  exps.forEach(e => { if(!used.has(e.id)) grp(e.manager).unsettled.push(e); });
+  exps.forEach(e => { if(!used.has(e.id) && e.amount > 0) grp(e.manager).unsettled.push(e); });
+  const tickets = new Map();
+  exps.forEach(e => {
+    if(!e.bath) return;
+    const k = keyOf(e.manager); let t = tickets.get(k);
+    if(!t){ t = {key: k, name: e.manager, bought: 0, used: 0, events: []}; tickets.set(k, t); }
+    t.bought += e.bath.bought; t.used += e.bath.used; t.events.push(e);
+  });
+  tickets.forEach(t => { t.held = t.bought - t.used; t.value = t.held * BATH_UNIT; t.events.sort(byDate); });
   effSets.forEach(s => { const g = grp(s.manager); (s.done ? g.done : g.pending).push(s); });
   groups.forEach(g => {
     g.unsettled.sort(byDate);
@@ -499,9 +541,10 @@ function derive(){
     g.pendingTotal = g.pending.reduce((t, s) => t + s.total, 0);
     g.owed = g.unsettledTotal + g.pendingTotal;
   });
-  return {exps, byId, effSets, used, groups};
+  return {exps, byId, effSets, used, groups, tickets};
 }
 function statusOf(e, d){
+  if(e.amount === 0) return pill('ok', '支払なし');
   const s = d.used.get(e.id);
   if(!s) return pill('warn', '未返済');
   if(s.done) return pill('ok', '完了 ' + md(dayOf(s.doneAt).replace(/\//g, '-')));
@@ -541,7 +584,8 @@ function itemRow(e, o){
     : pill('idle', 'レシートなし');
   const del = o.canDelete ? ask('del:' + e.id, '削除', 'small ghost', 'この立替を削除しますか？', '削除する') : '';
   return '<li class="item"><div class="item-main"><span class="d">' + esc(md(e.date)) + '</span>' +
-    '<span class="p">' + esc(e.desc || e.account) + (o.editAcct ? '' : '<span class="note">' + esc(e.account) + '</span>') + (o.showName ? '<span class="who">' + esc(e.manager) + '</span>' : '') + '</span>' +
+    '<span class="p">' + esc(e.desc || e.account) + (o.editAcct ? '' : '<span class="note">' + esc(e.account) + '</span>') +
+    (e.bath ? '<span class="note">銭湯券　購入' + e.bath.bought + '枚・使用' + e.bath.used + '枚（会計上 ' + yen(e.led) + '）</span>' : '') + (o.showName ? '<span class="who">' + esc(e.manager) + '</span>' : '') + '</span>' +
     '<span class="a">' + yen(e.amount) + '</span></div>' +
     '<div class="item-meta">' + (o.status || '') + rec + (o.editAcct ? acctSelect(e) : '') + del + '</div></li>';
 }
@@ -600,9 +644,9 @@ function renderPayout(d){
 }
 function renderMine(d){
   const el = $('#mine-body'), k = keyOf(state.myName);
-  if(!k){ el.innerHTML = '<div class="empty"><strong>名前を入力してください</strong>登録した名前を入れると、あなたの立替と返済の状況が表示されます。</div>'; return; }
+  if(!k){ el.innerHTML = '<div class="empty"><strong>名前を選んでください</strong>上の一覧から自分の名前を選ぶと、あなたの立替と返済の状況が表示されます。</div>'; return; }
   const g = d.groups.get(k);
-  if(!g){ el.innerHTML = '<div class="empty"><strong>この名前の立替はまだありません</strong>「登録」から金額とレシートを送ると、ここに出ます。名前の表記が違うと別の人として扱われます。</div>'; return; }
+  if(!g){ el.innerHTML = '<div class="empty"><strong>返済待ちの立替はまだありません</strong>「登録」から金額とレシートを送ると、ここに出ます。</div>' + myTicketCard(d, k); return; }
   let h = '<section class="card sum-card"><div><div class="lbl">返済待ちの合計</div><div class="big">' + yen(g.owed) + '</div></div></section>';
   if(g.owed > 0) h += '<section class="card">' + groupBody(g, 'm', d) + '</section>';
   else h += '<div class="empty"><strong>返済待ちの立替はありません</strong></div>';
@@ -611,6 +655,33 @@ function renderMine(d){
       '<details><summary>' + esc(dayOf(s.doneAt)) + '　' + yen(s.total) + '（' + s.items.length + '件）</summary><ul class="items">' +
       s.items.map(e => itemRow(e, {})).join('') + '</ul></details>').join('') + '</section>';
   }
+  el.innerHTML = h + myTicketCard(d, k);
+}
+function myTicketCard(d, k){
+  const t = d.tickets.get(k);
+  if(!t) return '';
+  return '<section class="card stack"><h2>銭湯券の保有</h2><div class="sum-card"><div><div class="lbl">いま持っている枚数</div><div class="held">' + t.held + '枚</div></div>' +
+    '<div class="sum-meta"><span>購入 ' + t.bought + '枚</span><span>使用 ' + t.used + '枚</span><span>現金換算 ' + yen(Math.max(0, t.value)) + '</span></div></div>' +
+    '<p class="hint">残りの券は、次に使う分です。使ったときは、「登録」で「買っていない」を選んで人数を登録してください。</p></section>';
+}
+function renderTickets(d){
+  const el = $('#tickets-body');
+  const list = Array.from(d.tickets.values()).sort((a, b) => (b.held - a.held) || a.name.localeCompare(b.name, 'ja'));
+  if(!list.length){
+    el.innerHTML = '<div class="empty"><strong>銭湯券の記録はまだありません</strong>マネージャーが勘定科目で「銭湯代」を選び、人数と買った枚数を入れて登録すると、ここに保有枚数が出ます。</div>';
+    return;
+  }
+  const held = list.reduce((t, x) => t + Math.max(0, x.held), 0);
+  let h = '<section class="card stack"><div class="sum-card"><div><div class="lbl">銭湯券の保有（全員の合計）</div><div class="big">' + held + '枚</div></div>' +
+    '<div class="sum-meta"><span>現金換算 ' + yen(held * BATH_UNIT) + '</span><span>1枚 ' + yen(BATH_UNIT) + '</span></div></div>' +
+    '<p class="hint">券は、買った人が持っている扱いです。会計ファイルには、使った枚数分だけが出金として載ります。使っていない券は、現金として数えます。</p></section>';
+  list.forEach(t => {
+    h += '<article class="card"><header class="mgr-head"><h3>' + esc(t.name) + '</h3><div class="held">' + t.held + '枚</div></header>' +
+      '<div class="sum-meta"><span>購入 ' + t.bought + '枚</span><span>使用 ' + t.used + '枚</span><span>現金換算 ' + yen(Math.max(0, t.value)) + '</span></div>' +
+      (t.held < 0 ? '<p class="err">使った枚数が、買った枚数より多くなっています。記録に漏れがないか確認してください。</p>' : '') +
+      '<div class="block"><details><summary>記録を見る（' + t.events.length + '件）</summary><ul class="items">' +
+      t.events.slice().reverse().map(e => itemRow(e, {status: statusOf(e, d), canDelete: !d.used.has(e.id)})).join('') + '</ul></details></div></article>';
+  });
   el.innerHTML = h;
 }
 function fmtPct(f){
@@ -638,9 +709,9 @@ function pieSvg(slices, total){
     }
     a0 = a1;
   });
-  out += '<text class="pc-l" x="' + C + '" y="' + (C - 8) + '" text-anchor="middle">返済額の合計</text>' +
+  out += '<text class="pc-l" x="' + C + '" y="' + (C - 8) + '" text-anchor="middle">会計上の合計</text>' +
          '<text class="pc-v" x="' + C + '" y="' + (C + 14) + '" text-anchor="middle">' + yen(total) + '</text>';
-  return '<svg class="pie" viewBox="0 0 220 220" role="img" aria-label="勘定科目ごとの返済額の円グラフ。内訳は下の一覧にあります。">' + out + '</svg>';
+  return '<svg class="pie" viewBox="0 0 220 220" role="img" aria-label="勘定科目ごとの金額の円グラフ。内訳は下の一覧にあります。">' + out + '</svg>';
 }
 function renderHistory(d){
   const done = d.effSets.filter(s => s.done).sort((a, b) => b.doneAt - a.doneAt);
@@ -658,12 +729,16 @@ function renderHistory(d){
     '<div class="big">' + yen(total) + '</div><div class="hint">' + shown.length + '回の返済</div></div>' +
     '<div class="field"><label for="h-year">表示する年</label><select id="h-year" class="h-year">' + yopts + '</select></div></section>';
 
-  h += '<section class="card stack"><h2>勘定科目ごとの返済額</h2>';
-  if(!total){
+  const extras = d.exps.filter(e => e.amount === 0 && e.led > 0 && (sel === 'all' || e.date.slice(0, 4) === sel));
+  const ledTotal = shown.reduce((t, s) => t + s.items.reduce((u, e) => u + e.led, 0), 0) + extras.reduce((t, e) => t + e.led, 0);
+  const hasBath = extras.length > 0 || shown.some(s => s.items.some(e => e.bath));
+  h += '<section class="card stack"><h2>勘定科目ごとの金額</h2>';
+  if(!ledTotal){
     h += '<p class="hint">この期間に返済が完了した立替はまだありません。会計係と受け取った人の両方が確認ボタンを押すと、ここに集計されます。</p>';
   }else{
     const byAcct = new Map();
-    shown.forEach(s => s.items.forEach(e => byAcct.set(e.account, (byAcct.get(e.account) || 0) + e.amount)));
+    shown.forEach(s => s.items.forEach(e => byAcct.set(e.account, (byAcct.get(e.account) || 0) + e.led)));
+    extras.forEach(e => byAcct.set(e.account, (byAcct.get(e.account) || 0) + e.led));
     const parts = Array.from(byAcct, ([name, value]) => ({name, value})).sort((a, b) => (b.value - a.value) || (a.name < b.name ? -1 : 1));
     const fold = parts.length > 8;
     const colorOf = i => (!fold || i < 7) ? 'var(--s' + (i + 1) + ')' : 'var(--sx)';
@@ -673,10 +748,11 @@ function renderHistory(d){
       const rest = parts.slice(7);
       slices = slices.slice(0, 7).concat([{name: 'ほか（' + rest.length + '科目）', value: sum2(rest), color: 'var(--sx)', ink: 'var(--sx-ink)'}]);
     }
-    h += '<div class="pie-wrap">' + pieSvg(slices, total) + '</div><ul class="legend">' +
+    h += '<div class="pie-wrap">' + pieSvg(slices, ledTotal) + '</div><ul class="legend">' +
       parts.map((p, i) => '<li><span class="sw" style="background:' + colorOf(i) + '"></span><span class="nm">' + esc(p.name) + '</span>' +
-        '<span class="pc">' + fmtPct(p.value / total) + '</span><span class="am">' + yen(p.value) + '</span></li>').join('') + '</ul>';
+        '<span class="pc">' + fmtPct(p.value / ledTotal) + '</span><span class="am">' + yen(p.value) + '</span></li>').join('') + '</ul>';
     if(fold) h += '<p class="hint">灰色は、金額の小さい' + (parts.length - 7) + '科目をまとめた部分です。</p>';
+    if(hasBath) h += '<p class="hint">銭湯代は、使った枚数分（1枚 ' + yen(BATH_UNIT) + '）だけを数えています。使っていない券は含みません。</p>';
   }
   h += '</section>';
 
@@ -693,14 +769,14 @@ function renderRecent(d){
   const mine = k ? d.exps.filter(e => keyOf(e.manager) === k).sort((a, b) => b.createdAt - a.createdAt).slice(0, 3) : [];
   if(!mine.length){ el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
-  el.innerHTML = '<h2>最近の登録</h2><ul class="items">' + mine.map(e => itemRow(e, {status: statusOf(e, d)})).join('') + '</ul>';
+  el.innerHTML = '<h2>最近の登録</h2><ul class="items">' + mine.map(e => itemRow(e, {status: statusOf(e, d), canDelete: !d.used.has(e.id)})).join('') + '</ul>';
 }
 
 /* ---------- ledger (Excel) ---------- */
 const LCOLS = ['月', '日', '摘要', '勘定科目', '入金', '出金'];
 function ledgerCells(e){
   const p = e.date.split('-');
-  return [Number(p[1]), Number(p[2]), e.desc + '(' + e.manager + ')', e.account, '', e.amount];
+  return [Number(p[1]), Number(p[2]), e.desc + '(' + e.manager + ')', e.account, '', e.led];
 }
 function renderLedger(d){
   const yearSel = $('#l-year');
@@ -715,7 +791,7 @@ function renderLedger(d){
   const st = $('#l-status').value;
   const rows = d.exps.filter(e => {
     if(sel !== 'all' && e.date.slice(0, 4) !== sel) return false;
-    const s = d.used.get(e.id), done = !!(s && s.done);
+    const s = d.used.get(e.id), done = e.amount === 0 || !!(s && s.done);
     if(st === 'done' && !done) return false;
     if(st === 'open' && done) return false;
     return true;
@@ -732,7 +808,7 @@ function renderLedger(d){
       return '<td' + (i === 2 ? ' class="desc"' : '') + '>' + esc(v) + '</td>';
     }).join('') + '</tr>';
   });
-  const total = sum(rows);
+  const total = rows.reduce((t, e) => t + e.led, 0);
   if(rows.length) h += '<tr class="total"><td colspan="5">合計</td><td class="num">' + total.toLocaleString('ja-JP') + '</td></tr>';
   h += '</tbody>';
   $('#l-table').innerHTML = h;
@@ -822,10 +898,12 @@ function renderAdmin(){
 function renderViews(){
   const d = derive(); state.d = d;
   renderNameSelects();
+  updateBathUI();
   renderAdmin();
   renderRecent(d);
   renderMine(d);
   renderPayout(d);
+  renderTickets(d);
   renderHistory(d);
   renderLedger(d);
   renderTabs();
@@ -995,6 +1073,31 @@ function setPhoto(file){
   if(file){ state.previewUrl = URL.createObjectURL(file); $('#f-img').src = state.previewUrl; $('#f-norec').checked = false; }
   else $('#f-img').removeAttribute('src');
 }
+function bathHeld(name){
+  const k = keyOf(name), t = state.d && state.d.tickets.get(k);
+  return t ? t.held : 0;
+}
+function updateBathUI(){
+  const isBath = $('#f-acct').value === BATH;
+  $('#bath-box').hidden = !isBath;
+  const useOnly = isBath && (Number($('#f-bought').value) || 0) === 0;
+  $('#amt-field').hidden = useOnly; $('#rec-field').hidden = useOnly;
+  $('label[for=f-desc]').textContent = isBath ? '摘要（省略できます）' : '摘要（何を買ったか）';
+  $('#f-desc').placeholder = isBath ? '空欄なら「14名分」と入ります' : '例：テーピング、グリップ、ゴミ袋代';
+  if(!isBath) return;
+  const used = parseAmount($('#f-used').value), bought = Number($('#f-bought').value) || 0;
+  const el = $('#bath-sum'); let parts = [];
+  if(Number.isFinite(used) && used > 0){
+    parts.push('会計ファイルに載る金額：' + yen(used * BATH_UNIT) + '（' + used + '枚 × ' + yen(BATH_UNIT) + '）');
+    if(bought > 0) parts.push('会計係から返ってくる金額：' + yen(bought * BATH_UNIT) + '（買った枚数の分）');
+    const nm = nk($('#f-name').value);
+    if(nm){
+      const after = bathHeld(nm) + bought - used;
+      parts.push(after >= 0 ? '登録後に、あなたが持っている券：' + after + '枚' : '<span class="bad">手持ちの券が足りません（' + after + '枚）。買った枚数を確認してください。</span>');
+    }
+  }
+  el.innerHTML = parts.map(p => p.indexOf('<span') === 0 ? p : esc(p)).join('<br>');
+}
 function parseAmount(v){
   const t = String(v).normalize('NFKC').replace(/[,\s¥円]/g, '');
   return /^\d+$/.test(t) ? Number(t) : NaN;
@@ -1012,26 +1115,39 @@ async function submitForm(ev){
   if(state.busy.has('submit')) return;
   if(!state.db){ showFormError('データベースに接続できていません。ページを開き直してください。'); return; }
   const name = nk($('#f-name').value), date = $('#f-date').value;
-  const acct = $('#f-acct').value, desc = nk($('#f-desc').value);
-  const amount = parseAmount($('#f-amount').value), noRec = $('#f-norec').checked;
+  const acct = $('#f-acct').value;
+  let desc = nk($('#f-desc').value);
+  const isBath = acct === BATH;
+  const used = isBath ? parseAmount($('#f-used').value) : 0;
+  const bought = isBath ? (Number($('#f-bought').value) || 0) : 0;
+  const useOnly = isBath && bought === 0;
+  const amount = useOnly ? 0 : parseAmount($('#f-amount').value), noRec = $('#f-norec').checked;
   if(!name) return showFormError('あなたの名前を選んでください。名前がなければ「名前を追加する」から登録できます。', 'f-name');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return showFormError('購入日を入力してください。', 'f-date');
   if(!acct) return showFormError('勘定科目を選んでください。', 'f-acct');
-  if(!desc) return showFormError('摘要（何を買ったか）を入力してください。', 'f-desc');
-  if(!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return showFormError('金額は1円から100万円の数字で入力してください。', 'f-amount');
-  if(!state.photo && !noRec) return showFormError('レシートの写真を追加するか、「レシートがない」にチェックしてください。');
+  if(isBath){
+    if(!Number.isFinite(used) || used < 1 || used > 500) return showFormError('人数（使った銭湯券の枚数）を、1〜500の数字で入力してください。', 'f-used');
+    if(!desc) desc = used + '名分';
+  }else if(!desc) return showFormError('摘要（何を買ったか）を入力してください。', 'f-desc');
+  if(!useOnly){
+    if(!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return showFormError('金額は1円から100万円の数字で入力してください。', 'f-amount');
+    if(!state.photo && !noRec) return showFormError('レシートの写真を追加するか、「レシートがない」にチェックしてください。');
+  }
   showFormError('');
   state.busy.add('submit');
   const btn = $('#b-submit'); btn.disabled = true; btn.textContent = '送信中…';
   try{
     const ref = state.db.collection('expenses').doc();
     let receipt = null;
-    if(state.photo && !noRec) receipt = await storeReceipt(state.photo, ref.id);
-    await ref.set({date, manager: name, account: acct, desc, amount, receipt, uid: state.user.uid, createdAt: Date.now()});
+    if(!useOnly && state.photo && !noRec) receipt = await storeReceipt(state.photo, ref.id);
+    const rec = {date, manager: name, account: acct, desc, amount, receipt, uid: state.user.uid, createdAt: Date.now()};
+    if(isBath) rec.bath = {bought, used, unit: BATH_UNIT};
+    await ref.set(rec);
     setName(name);
     $('#f-amount').value = ''; $('#f-desc').value = ''; $('#f-acct').value = ''; $('#f-norec').checked = false; setPhoto(null);
+    $('#f-used').value = ''; $('#f-bought').value = '0'; state.autoAmt = null;
     $('#f-date').value = todayStr();
-    toast('登録しました　' + yen(amount));
+    toast(useOnly ? '登録しました　銭湯券 ' + used + '枚' : '登録しました　' + yen(amount));
     renderViews();
   }catch(e){
     showFormError(e && e.message === 'too_large' ? '写真が大きすぎて保存できませんでした。撮り直してください。' : errMsg(e));
@@ -1111,6 +1227,15 @@ document.addEventListener('change', ev => {
 $('#l-year').addEventListener('change', () => { state.yearTouched = true; renderLedger(state.d); });
 ['#l-status', '#l-head'].forEach(s => $(s).addEventListener('change', () => renderLedger(state.d)));
 $('#b-copy').addEventListener('click', copyLedger);
+$('#f-acct').addEventListener('change', updateBathUI);
+$('#f-used').addEventListener('input', updateBathUI);
+$('#f-amount').addEventListener('input', updateBathUI);
+$('#f-bought').addEventListener('change', () => {
+  const bought = Number($('#f-bought').value) || 0, cur = $('#f-amount').value.trim();
+  if(bought > 0 && (cur === '' || cur === String(state.autoAmt))){ state.autoAmt = bought * BATH_UNIT; $('#f-amount').value = String(state.autoAmt); }
+  else if(bought === 0 && cur === String(state.autoAmt)){ $('#f-amount').value = ''; state.autoAmt = null; }
+  updateBathUI();
+});
 
 /* ---------- boot ---------- */
 function subscribe(db){
@@ -1182,7 +1307,7 @@ function teamTreasurersOf(data){
 function renderWho(){
   const el = $('#who');
   if(!state.user){ el.innerHTML = ''; return; }
-  const code = state.team ? '<button type="button" class="btn small ghost" data-act="changecode">合言葉を変更</button>' : '';
+  const code = (state.team && state.isOwner) ? '<button type="button" class="btn small ghost" data-act="changecode">合言葉を変更</button>' : '';
   el.innerHTML = state.isOwner
     ? '<span>会計係　' + esc(state.user.email) + '</span><span class="who-b">' + code + '<button type="button" class="btn small ghost" data-act="logout">ログアウト</button></span>'
     : '<span></span><span class="who-b">' + code + '<button type="button" class="btn small ghost" data-act="login">会計係ログイン</button></span>';
