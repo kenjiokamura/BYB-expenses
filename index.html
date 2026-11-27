@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BYB 立替精算</title>
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BYB立替">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;600&display=swap">
 <style>
 :root{color-scheme:light; padding-top:env(safe-area-inset-top, 0px); padding-bottom:env(safe-area-inset-bottom, 0px)}
@@ -65,7 +71,7 @@ button,input,select{font:inherit; color:inherit}
 .top{display:flex; align-items:center; gap:14px}
 .mark{
   flex:none; width:44px; height:44px; border-radius:8px; border:1px solid var(--line);
-  background:repeating-linear-gradient(0deg, var(--accent) 0 7px, var(--surface) 7px 14px);
+  background:repeating-linear-gradient(0deg, #111111 0 7px, #f5c400 7px 14px);
 }
 .lede{color:var(--muted); font-size:.875rem}
 
@@ -135,6 +141,15 @@ td.desc{white-space:normal; min-width:16em}
 .btn.wide{width:100%}
 .btn:disabled{opacity:.5; cursor:default}
 .btn-row{display:flex; flex-wrap:wrap; gap:8px}
+.addbox{margin-top:2px}
+.addrow{display:flex; gap:8px; align-items:stretch}
+.addrow input{flex:1; min-width:0}
+.rows{list-style:none; padding:0; display:grid}
+.rows li{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 10px; padding:8px 0; border-top:1px solid var(--line)}
+.rows li:first-child{border-top:0}
+.rows .nm{min-width:0; overflow-wrap:anywhere}
+.rows .tag{color:var(--muted); font-size:.8rem}
+.rows .confirm-row{flex-basis:100%}
 .err{padding:10px 14px; border-radius:10px; background:var(--bad-soft); color:var(--bad); font-size:.9rem}
 
 .sum-card{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:8px 20px}
@@ -249,7 +264,8 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
         </div>
         <div class="field">
           <label for="f-name">あなたの名前</label>
-          <input id="f-name" type="text" list="names" autocomplete="off" placeholder="例：田中">
+          <select id="f-name" class="name-sel"></select>
+          <details class="addbox"><summary>一覧にない場合は、名前を追加する</summary><div class="addrow"><input type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤"><button type="button" class="btn" data-act="addmember" data-self="1">追加</button></div></details>
         </div>
         <div class="field">
           <label for="f-date">購入日</label>
@@ -290,7 +306,8 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
     <section id="view-mine" class="panel" hidden>
       <div class="card field">
         <label for="m-name">あなたの名前</label>
-        <input id="m-name" type="text" list="names" autocomplete="off" placeholder="登録した名前">
+        <select id="m-name" class="name-sel"></select>
+        <details class="addbox"><summary>一覧にない場合は、名前を追加する</summary><div class="addrow"><input type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤"><button type="button" class="btn" data-act="addmember" data-self="1">追加</button></div></details>
       </div>
       <div id="mine-body" class="stack"></div>
     </section>
@@ -330,10 +347,48 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
     <section id="view-history" class="panel" hidden>
       <div id="history-body" class="stack"></div>
     </section>
+
+    <section id="view-admin" class="panel" hidden>
+      <div class="card stack">
+        <div>
+          <h2>マネージャーに送るリンク</h2>
+          <p class="hint">このリンクを開くだけで使えます。LINEなどで送ってください。</p>
+        </div>
+        <input id="adm-link" type="text" readonly aria-label="マネージャーに送るリンク">
+        <button type="button" class="btn" data-act="copylink">リンクをコピー</button>
+      </div>
+      <div class="card stack">
+        <div>
+          <h2>会計係</h2>
+          <p class="hint">会計係に追加した人は、自分のGoogleアカウントで「会計係ログイン」をすると、精算・記録・履歴・管理を使えます。次の会計係への引き継ぎは、ここで追加してください。</p>
+        </div>
+        <div id="adm-tre"></div>
+        <div class="field">
+          <label for="t-email">会計係を追加（Googleアカウントのメールアドレス）</label>
+          <div class="addrow"><input id="t-email" type="text" inputmode="email" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="例：name@gmail.com">
+          <button type="button" class="btn" data-act="addtre">追加</button></div>
+        </div>
+      </div>
+      <div class="card stack">
+        <div>
+          <h2>メンバー（立替を登録する人）</h2>
+          <p class="hint">登録の画面で、この一覧から自分の名前を選びます。マネージャー本人も、一覧にない名前を追加できます。外しても、過去の立替の記録は残ります。</p>
+        </div>
+        <div id="adm-mem"></div>
+        <div id="adm-seed" class="confirm-row" hidden>
+          <p>まだ誰も登録されていません。最初のメンバー（門脇・川田・伊達・児玉・申・鈴木・田中・富田）をまとめて登録できます。</p>
+          <button type="button" class="btn primary" data-act="do" data-key="seed:1">初期メンバーを登録する</button>
+        </div>
+        <div class="field">
+          <label for="a-name">メンバーを追加</label>
+          <div class="addbox"><div class="addrow"><input id="a-name" type="text" class="add-name" autocomplete="off" maxlength="20" placeholder="例：佐藤">
+          <button type="button" class="btn" data-act="addmember">追加</button></div></div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
-<datalist id="names"></datalist>
 
 <div id="lightbox" class="lb" hidden role="dialog" aria-modal="true" aria-label="レシートの写真">
   <div class="lb-box">
@@ -381,13 +436,15 @@ const pill = (cls, text) => '<span class="pill ' + cls + '">' + esc(text) + '</s
 const state = {
   db: null, assets: null, dbMissing: false, error: false, slow: false,
   isOwner: false /* true for anyone who can edit the page: the treasurer */, canWrite: null,
-  expenses: [], settlements: [], loaded: {exp: false, set: false},
+  expenses: [], settlements: [], members: [], membersLoaded: false, teamTreasurers: [], loaded: {exp: false, set: false},
   tab: 'submit', myName: nk(lsGet('byb.name') || ''),
   confirm: null, busy: new Set(), photo: null, previewUrl: null, yearTouched: false, histYear: null, team: '', user: null,
   d: null, ledgerRows: []
 };
-const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', ledger: '記録', history: '履歴'};
-const tabList = () => state.isOwner ? ['payout', 'submit', 'ledger', 'history'] : ['submit', 'mine'];
+const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', ledger: '記録', history: '履歴', admin: '管理'};
+const tabList = () => state.isOwner ? ['payout', 'submit', 'ledger', 'history', 'admin'] : ['submit', 'mine'];
+const INITIAL_MEMBERS = ['門脇', '川田', '伊達', '児玉', '申', '鈴木', '田中', '富田'];
+const lower = x => String(x || '').trim().toLowerCase();
 
 /* ---------- data normalising and derived view ---------- */
 function normExpense(id, r){
@@ -719,15 +776,53 @@ function renderTabs(){
     TAB_LABEL[t] + (t === 'payout' && owedPeople ? '<span class="badge">' + owedPeople + '</span>' : '') + '</button>').join('');
   $$('.panel').forEach(p => { p.hidden = p.id !== 'view-' + state.tab; });
 }
-function renderDatalist(d){
-  const names = new Set();
-  if(state.myName) names.add(nk(state.myName));
-  d.groups.forEach(g => names.add(g.name));
-  $('#names').innerHTML = Array.from(names).sort((a, b) => a.localeCompare(b, 'ja')).map(n => '<option value="' + esc(n) + '"></option>').join('');
+function memberEntries(){
+  return state.members.map(r => ({id: r.id, name: nk(r.data && r.data.name), at: Number(r.data && r.data.createdAt) || 0})).filter(m => m.name)
+    .sort((a, b) => (a.at - b.at) || a.name.localeCompare(b.name, 'ja'));
+}
+function rosterNames(){
+  const seen = new Set(), out = [];
+  memberEntries().forEach(m => { const k = keyOf(m.name); if(!seen.has(k)){ seen.add(k); out.push(m.name); } });
+  return out;
+}
+function renderNameSelects(){
+  const names = rosterNames();
+  if(state.myName && !names.some(n => keyOf(n) === keyOf(state.myName))) names.push(state.myName);
+  const mine = names.find(n => keyOf(n) === keyOf(state.myName)) || '';
+  const html = '<option value="">選んでください</option>' + names.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
+  $$('.name-sel').forEach(el => {
+    if(el.dataset.h !== html){ el.innerHTML = html; el.dataset.h = html; }
+    el.value = mine;
+    const box = el.parentNode && el.parentNode.querySelector('.addbox');
+    if(box && !names.length && state.membersLoaded) box.open = true;
+  });
+}
+function renderAdmin(){
+  if(!state.isOwner || !state.team) return;
+  const link = location.origin + location.pathname + '?t=' + state.team;
+  const inp = $('#adm-link'); if(inp.value !== link) inp.value = link;
+  const me = state.user && state.user.email ? lower(state.user.email) : '';
+  const fixed = TREASURERS.slice(), extra = state.teamTreasurers.filter(e => fixed.indexOf(e) < 0);
+  const rows = [];
+  fixed.forEach(e => rows.push('<li><span class="nm">' + esc(e) + (e === me ? '（あなた）' : '') + '</span><span class="tag">最初の会計係（外せません）</span></li>'));
+  extra.forEach(e => {
+    const mineRow = e === me;
+    rows.push('<li><span class="nm">' + esc(e) + (mineRow ? '（あなた）' : '') + '</span>' +
+      (mineRow ? '<span class="tag">ログイン中は外せません</span>'
+               : ask('dt:' + e, '外す', 'small ghost', e + ' を会計係から外します。', '外す')) + '</li>');
+  });
+  $('#adm-tre').innerHTML = '<ul class="rows">' + rows.join('') + '</ul>';
+  const ms = memberEntries();
+  $('#adm-mem').innerHTML = ms.length
+    ? '<ul class="rows">' + ms.map(m => '<li><span class="nm">' + esc(m.name) + '</span>' +
+        ask('dm:' + m.id, '外す', 'small ghost', '「' + m.name + '」を一覧から外します。過去の立替の記録は残ります。', '外す') + '</li>').join('') + '</ul>'
+    : '<p class="hint">' + (state.membersLoaded ? 'まだ誰も登録されていません。' : '読み込み中…') + '</p>';
+  $('#adm-seed').hidden = !(state.membersLoaded && !ms.length);
 }
 function renderViews(){
   const d = derive(); state.d = d;
-  renderDatalist(d);
+  renderNameSelects();
+  renderAdmin();
   renderRecent(d);
   renderMine(d);
   renderPayout(d);
@@ -775,6 +870,51 @@ async function deleteExpense(id){
   if(e.receipt && e.receipt.kind === 'doc') await state.db.doc('receipts/' + id).delete().catch(() => {});
   toast('削除しました');
 }
+async function addMember(name, self){
+  name = nk(name);
+  if(!state.db) return false;
+  if(!name){ toast('名前を入力してください', true); return false; }
+  if(name.length > 20){ toast('名前は20文字までです', true); return false; }
+  const ex = rosterNames().find(n => keyOf(n) === keyOf(name));
+  if(ex){
+    if(self){ setName(ex); renderViews(); }
+    toast('「' + ex + '」はすでに一覧にあります');
+    return true;
+  }
+  try{ await state.db.collection('members').doc().set({name, uid: state.user.uid, createdAt: Date.now()}); }
+  catch(e){ toast(errMsg(e), true); return false; }
+  if(self) setName(name);
+  toast('「' + name + '」を追加しました');
+  renderViews();
+  return true;
+}
+async function seedMembers(){
+  const have = new Set(rosterNames().map(keyOf));
+  const batch = fs.batch(), col = state.db.collection('members'), now = Date.now();
+  let n = 0;
+  INITIAL_MEMBERS.forEach((name, i) => {
+    if(have.has(keyOf(name))) return;
+    batch.set(col.doc(), {name, uid: state.user.uid, createdAt: now + i}); n++;
+  });
+  if(n) await batch.commit();
+  toast(n + '人を登録しました');
+}
+async function addTreasurer(){
+  const inp = $('#t-email'), em = lower(inp.value);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em) || em.length > 120){ toast('メールアドレスの形式が正しくありません', true); return; }
+  if(TREASURERS.indexOf(em) >= 0 || state.teamTreasurers.indexOf(em) >= 0){ toast('すでに会計係に登録されています', true); return; }
+  try{
+    await fs.doc('teams/' + state.team).update({treasurers: firebase.firestore.FieldValue.arrayUnion(em)});
+  }catch(e){ toast(errMsg(e), true); return; }
+  inp.value = '';
+  toast(em + ' を会計係に追加しました');
+}
+async function removeTreasurer(em){
+  const me = state.user && state.user.email ? lower(state.user.email) : '';
+  if(em === me){ toast('ログイン中のアカウントは外せません', true); return; }
+  await fs.doc('teams/' + state.team).update({treasurers: firebase.firestore.FieldValue.arrayRemove(em)});
+  toast('会計係から外しました');
+}
 async function runAction(key){
   const i = key.indexOf(':'), kind = key.slice(0, i), arg = key.slice(i + 1);
   if(state.busy.has(key)) return;
@@ -786,6 +926,9 @@ async function runAction(key){
     else if(kind === 'cm') await confirmSettlement(arg, 'm');
     else if(kind === 'cs') await cancelSettlement(arg);
     else if(kind === 'del') await deleteExpense(arg);
+    else if(kind === 'dm'){ await state.db.doc('members/' + arg).delete(); toast('メンバーを外しました'); }
+    else if(kind === 'dt') await removeTreasurer(arg);
+    else if(kind === 'seed') await seedMembers();
   }catch(e){
     toast(errMsg(e), true);
   }finally{
@@ -871,7 +1014,7 @@ async function submitForm(ev){
   const name = nk($('#f-name').value), date = $('#f-date').value;
   const acct = $('#f-acct').value, desc = nk($('#f-desc').value);
   const amount = parseAmount($('#f-amount').value), noRec = $('#f-norec').checked;
-  if(!name) return showFormError('名前を入力してください。', 'f-name');
+  if(!name) return showFormError('あなたの名前を選んでください。名前がなければ「名前を追加する」から登録できます。', 'f-name');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return showFormError('購入日を入力してください。', 'f-date');
   if(!acct) return showFormError('勘定科目を選んでください。', 'f-acct');
   if(!desc) return showFormError('摘要（何を買ったか）を入力してください。', 'f-desc');
@@ -885,7 +1028,7 @@ async function submitForm(ev){
     let receipt = null;
     if(state.photo && !noRec) receipt = await storeReceipt(state.photo, ref.id);
     await ref.set({date, manager: name, account: acct, desc, amount, receipt, uid: state.user.uid, createdAt: Date.now()});
-    setName(name); $('#m-name').value = name;
+    setName(name);
     $('#f-amount').value = ''; $('#f-desc').value = ''; $('#f-acct').value = ''; $('#f-norec').checked = false; setPhoto(null);
     $('#f-date').value = todayStr();
     toast('登録しました　' + yen(amount));
@@ -919,7 +1062,24 @@ document.addEventListener('click', ev => {
   else if(act === 'changecode') setGate(codeGate(''));
   else if(act === 'gateback'){ if(state.db) setGate(null); }
   else if(act === 'createteam') createTeam();
+  else if(act === 'addmember'){
+    const box = b.closest('.addbox'), inp = box && $('.add-name', box);
+    if(inp) addMember(inp.value, b.dataset.self === '1').then(ok => { if(ok){ inp.value = ''; const dt = b.closest('details'); if(dt) dt.open = false; } });
+  }
+  else if(act === 'addtre') addTreasurer();
+  else if(act === 'copylink') copyLink();
   else if(act === 'reload') location.reload();
+});
+async function copyLink(){
+  const inp = $('#adm-link');
+  try{ await navigator.clipboard.writeText(inp.value); toast('リンクをコピーしました'); }
+  catch(e){ inp.focus(); inp.select(); toast('選択しました。コピーしてください'); }
+}
+document.addEventListener('keydown', ev => {
+  if(ev.key !== 'Enter') return;
+  const t = ev.target;
+  if(t && t.classList && t.classList.contains('add-name')){ ev.preventDefault(); const b = t.parentNode.querySelector('[data-act=addmember]'); if(b) b.click(); }
+  else if(t && t.id === 't-email'){ ev.preventDefault(); addTreasurer(); }
 });
 document.addEventListener('submit', ev => {
   if(ev.target && ev.target.id === 'code-form'){ ev.preventDefault(); saveCode(); }
@@ -941,13 +1101,13 @@ $('#b-clear').addEventListener('click', () => setPhoto(null));
 }));
 $('#f-norec').addEventListener('change', ev => { if(ev.target.checked) setPhoto(null); });
 document.addEventListener('change', ev => {
+  const ns = ev.target.closest && ev.target.closest('.name-sel');
+  if(ns){ setName(ns.value); renderViews(); return; }
   const s = ev.target.closest && ev.target.closest('.acct-sel');
   if(s) changeAccount(s.dataset.id, s.value);
   const y = ev.target.closest && ev.target.closest('.h-year');
   if(y){ state.histYear = y.value; if(state.d) renderHistory(state.d); }
 });
-$('#f-name').addEventListener('input', ev => { setName(ev.target.value); $('#m-name').value = ev.target.value; if(state.d){ renderRecent(state.d); renderMine(state.d); } });
-$('#m-name').addEventListener('input', ev => { setName(ev.target.value); $('#f-name').value = ev.target.value; if(state.d){ renderRecent(state.d); renderMine(state.d); } });
 $('#l-year').addEventListener('change', () => { state.yearTouched = true; renderLedger(state.d); });
 ['#l-status', '#l-head'].forEach(s => $(s).addEventListener('change', () => renderLedger(state.d)));
 $('#b-copy').addEventListener('click', copyLedger);
@@ -961,6 +1121,10 @@ function subscribe(db){
     state.expenses = snap.docs.map(x => ({id: x.id, data: x.data()}));
     state.loaded.exp = true; done(); renderViews();
   }, onErr);
+  db.collection('members').onSnapshot(snap => {
+    state.members = snap.docs.map(x => ({id: x.id, data: x.data()}));
+    state.membersLoaded = true; renderViews();
+  }, onErr);
   db.collection('settlements').onSnapshot(snap => {
     state.settlements = snap.docs.map(x => ({id: x.id, data: x.data()}));
     state.loaded.set = true; done(); renderViews();
@@ -969,8 +1133,6 @@ function subscribe(db){
 
 $('#f-acct').innerHTML = '<option value="">選んでください</option>' + ACCOUNTS.map(a => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('');
 $('#f-date').value = todayStr();
-$('#f-name').value = state.myName;
-$('#m-name').value = state.myName;
 renderViews();
 applyHash();
 
@@ -1002,9 +1164,20 @@ function initialTeam(){
   let t = '';
   try{
     const q = new URLSearchParams(location.search).get('t');
-    if(q){ t = q.trim(); lsSet('byb.team', t); history.replaceState(null, '', location.pathname + location.hash); }
+    if(q){ t = q.trim(); lsSet('byb.team', t); }
   }catch(e){}
   return t || lsGet('byb.team') || '';
+}
+function setUrlTeam(code){
+  try{ history.replaceState(null, '', location.pathname + '?t=' + encodeURIComponent(code) + location.hash); }catch(e){}
+}
+function recomputeOwner(){
+  const u = state.user, em = u && u.email ? lower(u.email) : '', was = state.isOwner;
+  state.isOwner = !!(em && u.emailVerified && (TREASURERS.indexOf(em) >= 0 || state.teamTreasurers.indexOf(em) >= 0));
+  return was !== state.isOwner;
+}
+function teamTreasurersOf(data){
+  return data && Array.isArray(data.treasurers) ? data.treasurers.map(lower).filter(Boolean) : [];
 }
 function renderWho(){
   const el = $('#who');
@@ -1017,7 +1190,7 @@ function renderWho(){
 function saveCode(){
   const v = nk($('#g-code').value);
   if(!TEAM_RE.test(v)){ setGate(codeGate('合言葉は、半角の英数字（- と _ も使えます）で6〜40文字です。')); return; }
-  lsSet('byb.team', v);
+  lsSet('byb.team', v); setUrlTeam(v);
   if(state.db){ location.reload(); return; }
   state.team = v; renderWho(); openTeam();
 }
@@ -1037,11 +1210,24 @@ async function openTeam(){
     return;
   }
   state.db = {collection: n => fs.collection('teams/' + code + '/' + n), doc: p => fs.doc('teams/' + code + '/' + p)};
+  state.teamTreasurers = teamTreasurersOf(snap.data()); recomputeOwner();
+  setUrlTeam(code);
   setGate(null); applyHash(); renderWho(); subscribe(state.db); renderViews();
+  fs.doc('teams/' + code).onSnapshot(s => {
+    state.teamTreasurers = teamTreasurersOf(s.exists ? s.data() : null);
+    const changed = recomputeOwner();
+    renderWho(); if(changed) applyHash(); renderViews();
+  }, e => console.error(e));
 }
 async function createTeam(){
   try{
-    await fs.doc('teams/' + state.team).set({createdAt: Date.now(), createdBy: state.user.email});
+    const em = lower(state.user.email);
+    await fs.doc('teams/' + state.team).set({createdAt: Date.now(), createdBy: em, treasurers: [em]});
+    try{
+      const batch = fs.batch(), col = fs.collection('teams/' + state.team + '/members'), now = Date.now();
+      INITIAL_MEMBERS.forEach((name, i) => batch.set(col.doc(), {name, uid: state.user.uid, createdAt: now + i}));
+      await batch.commit();
+    }catch(e){ console.error(e); }
     toast('チームを作成しました');
     openTeam();
   }catch(e){ toast(errMsg(e), true); }
@@ -1049,15 +1235,19 @@ async function createTeam(){
 async function loginTreasurer(){
   try{
     const r = await fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    const em = r.user && r.user.email ? r.user.email.toLowerCase() : '';
-    if(TREASURERS.indexOf(em) < 0){ toast('このGoogleアカウントは会計係に登録されていません', true); await fbAuth.signOut(); }
+    const em = r.user && r.user.email ? lower(r.user.email) : '';
+    let list = TREASURERS.slice();
+    if(TEAM_RE.test(state.team)){
+      try{ const ts = await fs.doc('teams/' + state.team).get(); if(ts.exists) list = list.concat(teamTreasurersOf(ts.data())); }catch(e){}
+    }
+    if(list.indexOf(em) < 0){ toast('このGoogleアカウントは会計係に登録されていません', true); await fbAuth.signOut(); }
   }catch(e){
     if(e && e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') toast('ログインできませんでした（' + (e.code || 'error') + '）', true);
   }
 }
 function onUser(u){
   state.user = u;
-  state.isOwner = !!(u.email && u.emailVerified && TREASURERS.indexOf(u.email.toLowerCase()) >= 0);
+  recomputeOwner();
   if(!started){ started = true; state.team = initialTeam(); renderWho(); openTeam(); return; }
   renderWho();
   if(!state.db) openTeam(); else { applyHash(); renderViews(); }
