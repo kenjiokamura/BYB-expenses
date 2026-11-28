@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="BYB立替">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{color-scheme:light; padding-top:env(safe-area-inset-top, 0px); padding-bottom:env(safe-area-inset-bottom, 0px)}
 body{margin:0; font:14px system-ui, sans-serif}
@@ -26,7 +26,7 @@ img{max-width:100%}
   --bad:#AE2A22; --bad-soft:#FADFDC;
   --s1:#257de0; --s2:#f47230; --s3:#00b894; --s4:#f2a600; --s5:#ee7fac; --s6:#008a17; --s7:#6a4ce2; --s8:#ec4647;
   --sx:#b8b8b8; --sx-ink:#0b0b0b; --s4-ink:#0b0b0b;
-  --font-ui:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --font-ui:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
   --font-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){
@@ -66,13 +66,11 @@ h1{font-size:1.45rem; font-weight:900; letter-spacing:.04em; line-height:1.3; te
 h2{font-size:1.1rem; font-weight:900; text-wrap:balance}
 h3{font-size:1.05rem; font-weight:900}
 h4{font-size:.9rem; font-weight:700; color:var(--muted)}
-button,input,select{font:inherit; color:inherit}
+button,input,select,textarea{font:inherit; color:inherit}
 
 .top{display:flex; align-items:center; gap:14px}
-.mark{
-  flex:none; width:44px; height:44px; border-radius:8px; border:1px solid var(--line);
-  background:repeating-linear-gradient(0deg, #111111 0 7px, #f5c400 7px 14px);
-}
+.mark{flex:none; width:46px; height:46px; border-radius:10px; overflow:hidden; line-height:0}
+.mark svg{width:100%; height:100%; display:block}
 .lede{color:var(--muted); font-size:.875rem}
 
 .status{margin-top:14px; padding:10px 14px; border-radius:10px; background:var(--warn-soft); color:var(--warn); font-size:.9rem}
@@ -106,9 +104,13 @@ input[type=text], input[type=date], select{
   width:100%; min-height:46px; padding:0 12px; font-size:16px;
   background:var(--surface); border:1px solid var(--line); border-radius:10px;
 }
+input[type=date]{-webkit-appearance:none; appearance:none; display:block; min-width:0; max-width:100%; text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left; min-width:0}
 input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, .chip input:focus-visible + span{
   outline:2px solid var(--accent); outline-offset:2px;
 }
+input::placeholder{color:var(--muted); opacity:.38}
+.amt-wrap input::placeholder{opacity:.3}
 .amt-wrap{position:relative}
 .amt-wrap span{position:absolute; left:14px; top:50%; transform:translateY(-50%); font-family:var(--font-num); color:var(--muted); font-size:20px}
 .amt-wrap input{padding-left:34px; font-family:var(--font-num); font-size:22px; font-weight:500}
@@ -141,9 +143,18 @@ td.desc{white-space:normal; min-width:16em}
 .btn.wide{width:100%}
 .btn:disabled{opacity:.5; cursor:default}
 .btn-row{display:flex; flex-wrap:wrap; gap:8px}
+textarea{width:100%; min-height:440px; padding:12px; font-size:16px; line-height:1.7; background:var(--surface); border:1px solid var(--line); border-radius:10px; resize:vertical}
+textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.doc{display:grid; gap:8px}
+.doc h3{margin-top:14px; padding-bottom:4px; border-bottom:2px solid var(--accent); font-size:1.02rem}
+.doc h3:first-child{margin-top:0}
+.doc ul{display:grid; gap:6px; padding-left:1.3em}
+.doc p{text-wrap:pretty}
+.doc p.small{font-size:.76rem; color:var(--muted); text-align:right}
+.doc-meta{font-size:.78rem; color:var(--muted)}
 .addbox{margin-top:2px}
-.addbox summary{font-size:.9rem}
-.lnk{color:var(--link); text-decoration:underline; text-underline-offset:3px; font-weight:700}
+.addbox summary{font-size:.76rem; color:var(--muted); opacity:.75}
+.lnk{color:var(--link); text-decoration:underline; text-underline-offset:3px; font-weight:500; opacity:.85}
 .bath{display:grid; gap:12px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
 .bath-sum{font-size:.9rem; font-weight:700; text-wrap:pretty}
 .bath-sum .bad{color:var(--bad)}
@@ -250,7 +261,7 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
 
 <div class="wrap">
   <header class="top">
-    <div class="mark" aria-hidden="true"></div>
+    <div class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><rect width="100" height="25" fill="#111"/><rect y="25" width="100" height="25" fill="#f5c400"/><rect y="50" width="100" height="25" fill="#111"/><rect y="75" width="100" height="25" fill="#f5c400"/><circle cx="50" cy="50" r="34" fill="#FFF8DC"/><circle cx="50" cy="50" r="31.8" fill="#111"/><circle cx="50" cy="50" r="28.3" fill="#FFD61F"/><circle cx="50" cy="50" r="24.4" fill="#111"/><circle cx="50" cy="50" r="23" fill="#FFD61F"/><text x="50" y="51" text-anchor="middle" dominant-baseline="central" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="34" fill="#111">¥</text></svg></div>
     <div>
       <h1>BYB 立替精算</h1>
     </div>
@@ -303,7 +314,7 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
         </div>
         <div class="field" id="amt-field">
           <label for="f-amount">金額（レシートの合計）</label>
-          <div class="amt-wrap"><span aria-hidden="true">¥</span><input id="f-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="1280"></div>
+          <div class="amt-wrap"><span aria-hidden="true">¥</span><input id="f-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="0000"></div>
         </div>
         <fieldset class="field" id="rec-field">
           <legend>レシートの写真</legend>
@@ -370,6 +381,10 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
       <div id="tickets-body" class="stack"></div>
     </section>
 
+    <section id="view-rules" class="panel" hidden>
+      <div id="rules-body" class="stack"></div>
+    </section>
+
     <section id="view-history" class="panel" hidden>
       <div id="history-body" class="stack"></div>
     </section>
@@ -393,6 +408,21 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
           <label for="t-email">会計係を追加（Googleアカウントのメールアドレス）</label>
           <div class="addrow"><input id="t-email" type="text" inputmode="email" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="例：name@gmail.com">
           <button type="button" class="btn" data-act="addtre">追加</button></div>
+        </div>
+      </div>
+      <div class="card stack">
+        <div>
+          <h2>LINE通知</h2>
+          <p class="hint">立替が登録されると、会計係のLINEに自動で知らせます。設定の手順は「LINE通知のセットアップ手順」にあります。</p>
+        </div>
+        <div class="field">
+          <label for="n-url">通知用のURL（Google Apps Script のウェブアプリ）</label>
+          <input id="n-url" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+        </div>
+        <p id="n-state" class="hint"></p>
+        <div class="btn-row">
+          <button type="button" class="btn primary" data-act="savenotify">保存</button>
+          <button type="button" class="btn" data-act="testnotify">テスト送信</button>
         </div>
       </div>
       <div class="card stack">
@@ -465,10 +495,38 @@ const state = {
   expenses: [], settlements: [], members: [], membersLoaded: false, teamTreasurers: [], loaded: {exp: false, set: false},
   tab: 'submit', myName: nk(lsGet('byb.name') || ''),
   confirm: null, busy: new Set(), photo: null, previewUrl: null, yearTouched: false, histYear: null, team: '', user: null,
-  d: null, ledgerRows: [], autoAmt: null
+  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, notifyUrl: ''
 };
-const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', admin: '管理'};
-const tabList = () => state.isOwner ? ['payout', 'tickets', 'ledger', 'history', 'admin'] : ['submit', 'mine'];
+const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', rules: 'ルール', admin: '管理'};
+const tabList = () => state.isOwner ? ['payout', 'tickets', 'ledger', 'history', 'rules', 'admin'] : ['submit', 'mine', 'rules'];
+const DEFAULT_RULES = [
+  '## BYB 立替精算のルール（2026年度）',
+  'みなさん日頃のご協力ありがとうございます。立替の登録は、次のルールでお願いします。',
+  '',
+  '## 勘定科目の選び方',
+  '- 氷・ポカリなど：「氷代その他」',
+  '- テーピング・アイシングなど：「メディカル代」',
+  '- 銭湯：「銭湯代」（下の「銭湯券のルール」を見てください）',
+  '- それ以外は、一覧から近いものを選んでください。迷ったときは会計係に聞いてください。',
+  '',
+  '## レシートについて',
+  '- レシートの写真は、必ず添付してください。',
+  '- オンラインで購入したときは、領収書など、購入したもの・金額・個数がわかるスクリーンショットを送ってください。',
+  '',
+  '## 銭湯券のルール',
+  '- 銭湯券は10枚単位（¥5,400）でしか買えません。1枚540円で計算します。',
+  '- 勘定科目で「銭湯代」を選ぶと、人数（使った枚数）と、買った枚数を入れる欄が出ます。金額とは別に、必ず人数を入れてください。',
+  '- 使わなかった券は、買った人が保管します。会計係が、誰が何枚持っているかを把握します。',
+  '- 会計ファイルには、使った枚数分だけが出金として載ります。',
+  '- 手持ちの券を使ったときは、「買っていない」を選んで、人数だけ登録してください。',
+  '',
+  '## 返済を受け取ったら',
+  '- 会計係から立替金が返済されたら、「自分の立替」で、必ず「受け取りました」ボタンを押してください。',
+  '- これで、確実にミスなく記録できます。',
+  '',
+  'みなさん日頃のご協力ありがとうございます。',
+  '> （岡村作成）'
+].join('\n');
 const BATH = '銭湯代', BATH_UNIT = 540;
 const INITIAL_MEMBERS = ['門脇', '川田', '伊達', '児玉', '申', '鈴木', '田中', '富田'];
 const lower = x => String(x || '').trim().toLowerCase();
@@ -877,6 +935,8 @@ function renderAdmin(){
   if(!state.isOwner || !state.team) return;
   const link = location.origin + location.pathname + '?t=' + state.team;
   const inp = $('#adm-link'); if(inp.value !== link) inp.value = link;
+  const nu = $('#n-url'); if(document.activeElement !== nu && nu.value !== state.notifyUrl) nu.value = state.notifyUrl;
+  $('#n-state').textContent = state.notifyUrl ? 'LINE通知：設定済み' : 'LINE通知：まだ設定されていません';
   const me = state.user && state.user.email ? lower(state.user.email) : '';
   const fixed = TREASURERS.slice(), extra = state.teamTreasurers.filter(e => fixed.indexOf(e) < 0);
   const rows = [];
@@ -895,11 +955,71 @@ function renderAdmin(){
     : '<p class="hint">' + (state.membersLoaded ? 'まだ誰も登録されていません。' : '読み込み中…') + '</p>';
   $('#adm-seed').hidden = !(state.membersLoaded && !ms.length);
 }
+function fmtDoc(text){
+  const lines = String(text || '').split('\n');
+  let h = '', list = false;
+  const close = () => { if(list){ h += '</ul>'; list = false; } };
+  lines.forEach(raw => {
+    const t = raw.replace(/\s+$/, '');
+    if(/^##\s+/.test(t)){ close(); h += '<h3>' + esc(t.replace(/^##\s+/, '')) + '</h3>'; }
+    else if(/^-\s+/.test(t)){ if(!list){ h += '<ul>'; list = true; } h += '<li>' + esc(t.replace(/^-\s+/, '')) + '</li>'; }
+    else if(/^>\s*/.test(t) && t.length){ close(); h += '<p class="small">' + esc(t.replace(/^>\s*/, '')) + '</p>'; }
+    else if(!t){ close(); }
+    else { close(); h += '<p>' + esc(t) + '</p>'; }
+  });
+  close();
+  return h;
+}
+function renderRules(){
+  const el = $('#rules-body');
+  if(!el) return;
+  const doc = state.rulesDoc, body = doc && typeof doc.body === 'string' && doc.body.trim() ? doc.body : DEFAULT_RULES;
+  if(state.rulesEdit && state.isOwner){
+    if($('#rules-ta')) return;
+    el.innerHTML = '<section class="card stack"><h2>ルールを編集</h2>' +
+      '<p class="hint">見出しは「## 」、箇条書きは「- 」、右寄せの小さな文字は「> 」で始めます。毎年、年度の数字などを更新してください。</p>' +
+      '<textarea id="rules-ta" maxlength="8000" spellcheck="false"></textarea>' +
+      '<div class="btn-row"><button type="button" class="btn primary" data-act="rules-save">保存する</button>' +
+      '<button type="button" class="btn" data-act="rules-cancel">やめる</button>' +
+      '<button type="button" class="btn ghost" data-act="rules-reset">最初の文章に戻す</button></div></section>';
+    $('#rules-ta').value = body;
+    return;
+  }
+  const meta = doc && doc.updatedAt ? '<p class="doc-meta">最終更新 ' + esc(dayOf(Number(doc.updatedAt))) + '</p>' : '';
+  el.innerHTML = '<section class="card doc">' + fmtDoc(body) + meta + '</section>' +
+    (state.isOwner ? '<button type="button" class="btn wide" data-act="rules-edit">このページを編集する（会計係のみ）</button>' : '');
+}
+async function saveRules(){
+  const ta = $('#rules-ta'); if(!ta || !state.db) return;
+  const body = ta.value.replace(/\r\n?/g, '\n').trim();
+  if(!body){ toast('文章が空です', true); return; }
+  try{
+    await state.db.doc('pages/rules').set({body, updatedAt: Date.now(), updatedBy: lower(state.user.email)});
+    state.rulesEdit = false; renderRules(); toast('保存しました');
+  }catch(e){ toast(errMsg(e), true); }
+}
+function notifyLine(text){
+  const u = state.notifyUrl;
+  if(!u || !/^https:\/\/script\.google\.com\/macros\/s\//.test(u) || !state.team) return;
+  try{
+    fetch(u, {method: 'POST', mode: 'no-cors', keepalive: true, headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({code: state.team, text: String(text).slice(0, 480)})}).catch(() => {});
+  }catch(e){}
+}
+async function saveNotify(){
+  const v = nk($('#n-url').value);
+  if(v && !/^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(v)){ toast('URLの形式が正しくありません（…/exec で終わる、Google Apps Script のURLです）', true); return; }
+  try{
+    await fs.doc('teams/' + state.team).update({notifyUrl: v ? v : firebase.firestore.FieldValue.delete()});
+    toast(v ? '通知用のURLを保存しました' : '通知を止めました');
+  }catch(e){ toast(errMsg(e), true); }
+}
 function renderViews(){
   const d = derive(); state.d = d;
   renderNameSelects();
   updateBathUI();
   renderAdmin();
+  renderRules();
   renderRecent(d);
   renderMine(d);
   renderPayout(d);
@@ -1148,6 +1268,7 @@ async function submitForm(ev){
     $('#f-used').value = ''; $('#f-bought').value = '0'; state.autoAmt = null;
     $('#f-date').value = todayStr();
     toast(useOnly ? '登録しました　銭湯券 ' + used + '枚' : '登録しました　' + yen(amount));
+    notifyLine('【BYB立替】' + name + 'さんが立替を登録しました\n' + acct + (useOnly ? '　手持ちの銭湯券 ' + used + '枚を使用' : '　' + yen(amount)) + '\n摘要：' + desc);
     renderViews();
   }catch(e){
     showFormError(e && e.message === 'too_large' ? '写真が大きすぎて保存できませんでした。撮り直してください。' : errMsg(e));
@@ -1183,6 +1304,12 @@ document.addEventListener('click', ev => {
     if(inp) addMember(inp.value, b.dataset.self === '1').then(ok => { if(ok){ inp.value = ''; const dt = b.closest('details'); if(dt) dt.open = false; } });
   }
   else if(act === 'addtre') addTreasurer();
+  else if(act === 'rules-edit'){ state.rulesEdit = true; renderRules(); }
+  else if(act === 'rules-cancel'){ state.rulesEdit = false; renderRules(); }
+  else if(act === 'rules-reset'){ const ta = $('#rules-ta'); if(ta) ta.value = DEFAULT_RULES; }
+  else if(act === 'rules-save') saveRules();
+  else if(act === 'savenotify') saveNotify();
+  else if(act === 'testnotify'){ if(!state.notifyUrl) toast('先に、通知用のURLを保存してください', true); else { notifyLine('【BYB立替】テスト通知です。この文章が届いていれば、設定は完了です。'); toast('テストを送りました。LINEを確認してください'); } }
   else if(act === 'copylink') copyLink();
   else if(act === 'reload') location.reload();
 });
@@ -1246,6 +1373,7 @@ function subscribe(db){
     state.expenses = snap.docs.map(x => ({id: x.id, data: x.data()}));
     state.loaded.exp = true; done(); renderViews();
   }, onErr);
+  db.doc('pages/rules').onSnapshot(sn => { state.rulesDoc = sn.exists ? sn.data() : null; renderRules(); }, e => console.error(e));
   db.collection('members').onSnapshot(snap => {
     state.members = snap.docs.map(x => ({id: x.id, data: x.data()}));
     state.membersLoaded = true; renderViews();
@@ -1301,6 +1429,7 @@ function recomputeOwner(){
   state.isOwner = !!(em && u.emailVerified && (TREASURERS.indexOf(em) >= 0 || state.teamTreasurers.indexOf(em) >= 0));
   return was !== state.isOwner;
 }
+function notifyUrlOf(data){ return data && typeof data.notifyUrl === 'string' ? data.notifyUrl : ''; }
 function teamTreasurersOf(data){
   return data && Array.isArray(data.treasurers) ? data.treasurers.map(lower).filter(Boolean) : [];
 }
@@ -1335,11 +1464,12 @@ async function openTeam(){
     return;
   }
   state.db = {collection: n => fs.collection('teams/' + code + '/' + n), doc: p => fs.doc('teams/' + code + '/' + p)};
-  state.teamTreasurers = teamTreasurersOf(snap.data()); recomputeOwner();
+  state.teamTreasurers = teamTreasurersOf(snap.data()); state.notifyUrl = notifyUrlOf(snap.data()); recomputeOwner();
   setUrlTeam(code);
   setGate(null); applyHash(); renderWho(); subscribe(state.db); renderViews();
   fs.doc('teams/' + code).onSnapshot(s => {
     state.teamTreasurers = teamTreasurersOf(s.exists ? s.data() : null);
+    state.notifyUrl = notifyUrlOf(s.exists ? s.data() : null);
     const changed = recomputeOwner();
     renderWho(); if(changed) applyHash(); renderViews();
   }, e => console.error(e));
