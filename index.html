@@ -197,6 +197,9 @@ textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .pill.warn{background:var(--warn-soft); color:var(--warn)}
 .pill.wait{background:var(--accent-soft); color:var(--accent)}
 .pill.idle{background:var(--surface-2); color:var(--muted)}
+.bank-box{display:grid; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
+.bank-box .ctrls{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+#lb-msg.pre{white-space:pre-line; text-align:left; line-height:1.8; background:rgba(0,0,0,.35); padding:14px 16px; border-radius:10px}
 
 .set{display:grid; gap:10px; padding:12px; margin-top:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
 .set-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:6px 12px}
@@ -330,6 +333,23 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
           <label for="f-amount">金額（レシートの合計）</label>
           <div class="amt-wrap"><span aria-hidden="true">¥</span><input id="f-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="0000"></div>
         </div>
+        <fieldset class="field" id="pay-field" hidden>
+          <legend>支払い方法（1万円以上のとき）</legend>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="f-pay" value="cash" checked><span>現金で受け取る</span></label>
+            <label class="chip"><input type="radio" name="f-pay" value="transfer"><span>振込を希望する</span></label>
+          </div>
+          <div id="bank-box" class="bank-box" hidden>
+            <p class="hint">振込先の口座を入力してください。会計係だけが見られます。返済が記録されると、この口座の情報は自動で削除されます。</p>
+            <div class="field"><label for="f-bank">銀行名</label><input id="f-bank" type="text" maxlength="40" autocomplete="off" placeholder="例：三菱UFJ銀行"></div>
+            <div class="ctrls">
+              <div class="field"><label for="f-branch">支店名</label><input id="f-branch" type="text" maxlength="40" autocomplete="off" placeholder="例：渋谷支店"></div>
+              <div class="field"><label for="f-btype">口座の種類</label><select id="f-btype"><option value="普通">普通</option><option value="当座">当座</option></select></div>
+            </div>
+            <div class="field"><label for="f-bnum">口座番号</label><input id="f-bnum" type="text" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="数字だけ（例：1234567）"></div>
+            <div class="field"><label for="f-bname">口座名義（カタカナ）</label><input id="f-bname" type="text" maxlength="40" autocomplete="off" placeholder="例：オカムラ ケンジ"></div>
+          </div>
+        </fieldset>
         <fieldset class="field" id="rec-field">
           <legend>レシートの写真</legend>
           <div class="rec-actions">
@@ -476,6 +496,7 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
   <div class="lb-box">
     <img id="lb-img" alt="レシートの写真" hidden>
     <p id="lb-msg">読み込み中…</p>
+    <button type="button" class="btn" id="lb-copy" hidden>コピーする</button>
     <button type="button" class="btn" id="lb-close">閉じる</button>
   </div>
 </div>
@@ -521,7 +542,7 @@ const state = {
   expenses: [], settlements: [], members: [], membersLoaded: false, teamTreasurers: [], loaded: {exp: false, set: false},
   tab: 'submit', myName: nk(lsGet('byb.name') || ''),
   confirm: null, busy: new Set(), photo: null, previewUrl: null, yearTouched: false, histYear: null, team: '', user: null,
-  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, manualDoc: null, manualEdit: false, compareDoc: null, compareMeta: null, archive: null, histAll: false, cmpYear: '', cmpAcct: 'all', notifyUrl: '',
+  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, manualDoc: null, manualEdit: false, compareDoc: null, compareMeta: null, archive: null, histAll: false, cmpYear: '', cmpAcct: 'all', cmpSrc: '', notifyUrl: '',
   prevTab: '', errCode: '', flash: ''
 };
 const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', rules: 'ルール', manual: 'マニュアル', admin: '管理'};
@@ -674,7 +695,7 @@ function normExpense(id, r){
     if(r.receipt.kind === 'doc') receipt = {kind: 'doc'};
   }
   return {id, date, amount, manager, account, bath, led: bath ? bath.used * bath.unit : amount,
-    desc: nk(r.desc) || nk(r.purpose) || nk(r.note), receipt, createdAt: Number(r.createdAt) || 0};
+    desc: nk(r.desc) || nk(r.purpose) || nk(r.note), receipt, pay: r.pay === 'transfer' ? 'transfer' : 'cash', createdAt: Number(r.createdAt) || 0};
 }
 function normSettlement(id, r){
   if(!r || typeof r !== 'object' || !Array.isArray(r.expenseIds)) return null;
@@ -770,12 +791,13 @@ function itemRow(e, o){
   const rec = e.receipt
     ? '<button type="button" class="btn small" data-act="receipt" data-id="' + esc(e.id) + '">レシートを見る</button>'
     : pill('idle', 'レシートなし');
+  const bank = e.pay === 'transfer' ? pill('wait', '振込希望') + (o.bank && state.isOwner ? '<button type="button" class="btn small" data-act="bank" data-id="' + esc(e.id) + '">口座を見る</button>' : '') : '';
   const del = o.canDelete ? ask('del:' + e.id, '削除', 'small ghost', 'この立替を削除しますか？', '削除する') : '';
   return '<li class="item"><div class="item-main"><span class="d">' + esc(md(e.date)) + '</span>' +
     '<span class="p">' + esc(e.desc || e.account) + (o.editAcct ? '' : '<span class="note">' + esc(e.account) + '</span>') +
     (e.bath ? '<span class="note">銭湯券　購入' + e.bath.bought + '枚・使用' + e.bath.used + '枚（会計上 ' + yen(e.led) + '）</span>' : '') + (o.showName ? '<span class="who">' + esc(e.manager) + '</span>' : '') + '</span>' +
     '<span class="a">' + yen(e.amount) + '</span></div>' +
-    '<div class="item-meta">' + (o.status || '') + rec + (o.editAcct ? acctSelect(e) : '') + del + '</div></li>';
+    '<div class="item-meta">' + (o.status || '') + bank + rec + (o.editAcct ? acctSelect(e) : '') + del + '</div></li>';
 }
 
 /* ---------- settlement blocks (shared by treasurer and manager views) ---------- */
@@ -785,13 +807,13 @@ function pendingBlock(s, side){
   const mp = s.managerAt ? pill('ok', 'マネージャー ✓ ' + stamp(s.managerAt)) : pill('idle', 'マネージャー 未確認');
   let act = '';
   if(side === 't'){
-    act += ask('ct:' + s.id, '返済した', 'primary', yen(s.total) + ' を返済したことを記録しますか？履歴と記録に反映されます。', 'はい、返済した');
+    act += ask('ct:' + s.id, '返済した', 'primary', yen(s.total) + ' を返済したことを記録しますか？履歴と記録に反映されます。' + (s.items.some(e => e.pay === 'transfer') ? '振込先の口座の情報は、このとき削除されます。' : ''), 'はい、返済した');
     act += ask('cs:' + s.id, '取り消す', 'small ghost', 'この記録を取り消しますか？立替は未返済に戻ります。', '取り消す');
   }else{
     act += '<p class="hint">受け取りを記録しました。会計係の確認を待っています。</p>';
     act += ask('cs:' + s.id, '取り消す', 'small ghost', '受け取りの記録を取り消しますか？立替は未返済に戻ります。', '取り消す');
   }
-  const rows = s.items.map(e => itemRow(e, {editAcct: side === 't'})).join('');
+  const rows = s.items.map(e => itemRow(e, {editAcct: side === 't', bank: side === 't'})).join('');
   return '<div class="set"><div class="set-head"><strong>受け取りの申告 ' + yen(s.total) + '（' + s.items.length + '件）</strong>' +
     '<div class="pills">' + tp + mp + '</div></div>' +
     '<details><summary>内訳を見る</summary><ul class="items">' + rows + '</ul></details>' +
@@ -817,12 +839,12 @@ function groupBody(g, side, d){
   let h = '';
   g.pending.forEach(s => { h += pendingBlock(s, side); });
   if(g.unsettled.length){
-    const rows = g.unsettled.map(e => itemRow(e, {status: statusOf(e, d), canDelete: true, editAcct: side === 't'})).join('');
+    const rows = g.unsettled.map(e => itemRow(e, {status: statusOf(e, d), canDelete: true, editAcct: side === 't', bank: side === 't'})).join('');
     const total = yen(g.unsettledTotal);
     const key = (side === 't' ? 'pay:' : 'recv:') + g.key;
     const label = side === 't' ? total + ' を返済した' : total + ' を受け取った';
     const text = side === 't'
-      ? g.name + ' さんに ' + total + ' を返済しましたか？記録すると、履歴と記録にすぐ反映されます。受け取りの確認は、あとで相手が押します。'
+      ? g.name + ' さんに ' + total + ' を返済しましたか？記録すると、履歴と記録にすぐ反映されます。受け取りの確認は、あとで相手が押します。' + (g.unsettled.some(e => e.pay === 'transfer') ? '振込先の口座の情報は、記録したときに削除されます。' : '')
       : '会計係から ' + total + ' を受け取りましたか？押すと会計係の画面に反映されます。';
     h += '<div class="block"><h4>未返済の立替 <span class="cnt">' + g.unsettled.length + '件</span></h4><ul class="items">' + rows + '</ul>' +
       ask(key, label, 'primary wide', text, side === 't' ? 'はい、返済した' : 'はい、受け取った') + '</div>';
@@ -1294,6 +1316,34 @@ function cmpChart(prev, cur, labels){
   out += '<text x="' + L + '" y="' + (H - 6) + '" text-anchor="end" style="font-size:9px">月</text>';
   return '<svg class="cmp-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="月ごとの支出の棒グラフ。去年と今年を並べています。数字は下の表にあります。">' + out + '</svg>';
 }
+/* numbers kept in the app itself: every registered 立替 (paid or not), by purchase month */
+function appYears(d){
+  const s = new Set(); (d ? d.exps : []).forEach(e => { const y = Number(e.date.slice(0, 4)); if(y) s.add(y); });
+  return Array.from(s).sort((a, b) => a - b);
+}
+function appCalc(d, y){
+  const perAcct = new Map(); let has = false, last = 0;
+  (d ? d.exps : []).forEach(e => {
+    if(Number(e.date.slice(0, 4)) !== y) return;
+    const m = Number(e.date.slice(5, 7)); if(!(m >= 1 && m <= 12)) return;
+    has = true; if(m > last) last = m;
+    const arr = perAcct.get(e.account) || Array(12).fill(0); arr[m - 1] += e.led; perAcct.set(e.account, arr);
+  });
+  const spend = Array(12).fill(0); perAcct.forEach(arr => arr.forEach((v, i) => { spend[i] += v; }));
+  return {has, perAcct, spend, income: Array(12).fill(0), balance: 0, last, incTotal: 0, spTotal: spend.reduce((t, v) => t + v, 0)};
+}
+const sumTo = (a, n) => a.slice(0, n).reduce((t, v) => t + v, 0);
+/* year-end projection: what is spent so far + what last year spent in the rest of the year (optionally scaled by this year's pace) */
+function cmpProject(cs, ps, mi){
+  const toDate = sumTo(cs, mi + 1);
+  const rest = ps.reduce((t, v, i) => t + (i > mi ? v : (i === mi ? Math.max(0, v - cs[mi]) : 0)), 0);
+  let adj = null, ratio = null;
+  if(mi >= 1){
+    const c = sumTo(cs, mi), p = sumTo(ps, mi);
+    if(p > 0){ ratio = Math.min(3, Math.max(0.3, c / p)); adj = toDate + Math.round(rest * ratio); }
+  }
+  return {toDate, rest, base: toDate + rest, adj, ratio, prevTotal: sumTo(ps, 12)};
+}
 function renderCompare(){
   const el = $('#compare-body');
   if(!el) return;
@@ -1301,12 +1351,13 @@ function renderCompare(){
   if($('#cmp-ta') && document.activeElement === $('#cmp-ta')) return;
   const keepTa = $('#cmp-ta') ? $('#cmp-ta').value : '', wasOpen = $('#cmp-box') ? $('#cmp-box').open : false;
   const doc = state.compareDoc && state.compareDoc.slots ? state.compareDoc : {slots: {}};
-  const years = cmpYears(doc);
+  const xYears = cmpYears(doc), aYears = appYears(state.d);
+  const years = Array.from(new Set(xYears.concat(aYears))).sort((a, b) => a - b);
   const slotNames = Object.keys(doc.slots).sort().map(k => { const p = k.split('-'); return p[0] + '年' + (p[1] === 'cash' ? '現金' : '預金'); });
-  const thisY = new Date().getFullYear();
-  const importBox = '<details id="cmp-box" class="addbox"' + ((wasOpen || !years.length) ? ' open' : '') + '><summary><span class="lnk">Excelの表を取り込む・更新する</span></summary>' +
-    '<div class="stack" style="margin-top:10px"><p class="hint">会計Excelの「現金出納帳」か「預金出納帳」の表（月・日・摘要・勘定科目・入金・出金・残高の列）を、コピーして貼り付けます。摘要の文章は保存されず、月ごとの勘定科目の合計だけが残ります。' +
-    '貼り付けた文章の先頭に「# 2025 現金」のような行があれば、年と台帳を自動で読み取ります。同じ年・同じ台帳に貼ると、上書きされます。</p>' +
+  const now = new Date(), thisY = now.getFullYear(), mi = now.getMonth();
+  const importBox = '<details id="cmp-box" class="addbox"' + ((wasOpen || !xYears.length) ? ' open' : '') + '><summary><span class="lnk">Excelの表を取り込む・更新する</span></summary>' +
+    '<div class="stack" style="margin-top:10px"><p class="hint">去年までの数字は、会計Excelから取り込みます。「現金出納帳」か「預金出納帳」の表（月・日・摘要・勘定科目・入金・出金・残高の列）を、コピーして貼り付けます。摘要の文章は保存されません。' +
+    '貼り付けた文章の先頭に「# 2025 現金」のような行があれば、年と台帳を自動で読み取ります。同じ年・同じ台帳に貼ると、上書きされます。今年の分は、アプリに登録された立替から自動で数えるので、取り込まなくても比べられます。</p>' +
     '<div class="ctrls"><div class="field"><label for="cmp-y">年</label><input id="cmp-y" type="number" inputmode="numeric" min="2000" max="2100" value="' + esc(String(state.cmpYear || thisY)) + '"></div>' +
     '<div class="field"><label for="cmp-k">台帳</label><select id="cmp-k"><option value="cash">現金出納帳</option><option value="bank">預金出納帳</option></select></div></div>' +
     '<textarea id="cmp-ta" class="cmp-ta" spellcheck="false" placeholder="ここに貼り付け"></textarea>' +
@@ -1314,41 +1365,71 @@ function renderCompare(){
     (slotNames.length ? '<p class="hint">取り込み済み：' + esc(slotNames.join('、')) + '</p>' : '') + '</div></details>';
   let h = '<section class="card stack"><h2>月ごとの支出（去年との比較）</h2>';
   if(!years.length){
-    h += '<p class="hint">まだデータがありません。下の「Excelの表を取り込む」から、会計Excelの表を貼り付けてください。去年と今年の2年分があると、比べられます。</p>' + importBox + '</section>';
+    h += '<p class="hint">まだデータがありません。立替が登録されると、ここに月ごとの支出が出ます。去年の数字と比べるには、下の「Excelの表を取り込む」から、去年の会計Excelの表を貼り付けてください。</p>' + importBox + '</section>';
     el.innerHTML = h;
     if($('#cmp-ta')) $('#cmp-ta').value = keepTa;
     return;
   }
   let by = Number(state.cmpYear);
-  if(years.indexOf(by) < 0) by = years[years.length - 1];
-  const py = years.indexOf(by - 1) >= 0 ? by - 1 : null;
-  const C = cmpCalc(doc, by, false), Pv = py ? cmpCalc(doc, py, false) : null;
+  if(years.indexOf(by) < 0) by = years.indexOf(thisY) >= 0 ? thisY : years[years.length - 1];
+  const hasX = xYears.indexOf(by) >= 0, hasA = aYears.indexOf(by) >= 0;
+  let src = state.cmpSrc;
+  if(src !== 'app' && src !== 'excel') src = (hasA && (by === thisY || !hasX)) ? 'app' : 'excel';
+  else if(src === 'app' && !hasA) src = 'excel';
+  else if(src === 'excel' && !hasX) src = 'app';
+  const C = src === 'app' ? appCalc(state.d, by) : cmpCalc(doc, by, false);
+  const pyX = xYears.indexOf(by - 1) >= 0, pyA = aYears.indexOf(by - 1) >= 0;
+  const Pv = pyX ? cmpCalc(doc, by - 1, false) : (pyA ? appCalc(state.d, by - 1) : null);
+  const py = Pv ? by - 1 : null;
   const accts = new Set(); C.perAcct.forEach((_, a) => accts.add(a)); if(Pv) Pv.perAcct.forEach((_, a) => accts.add(a));
   const tot = a => (C.perAcct.get(a) || []).reduce((t, v) => t + v, 0) + (Pv && Pv.perAcct.get(a) ? Pv.perAcct.get(a).reduce((t, v) => t + v, 0) : 0);
   const acctList = Array.from(accts).sort((a, b) => (tot(b) - tot(a)) || (a < b ? -1 : 1));
   let sel = state.cmpAcct; if(sel !== 'all' && !accts.has(sel)) sel = 'all';
   const pick = X => X ? (sel === 'all' ? X.spend : (X.perAcct.get(sel) || Array(12).fill(0))) : Array(12).fill(0);
   const cs = pick(C), ps = pick(Pv);
-  const last = C.last || 12;
+  const live = by === thisY;                                   /* the year still running: this month is only partly done */
+  const last = src === 'app' ? (live ? mi + 1 : 12) : (C.last || 12);
   const yopts = years.slice().reverse().map(y => '<option value="' + y + '"' + (y === by ? ' selected' : '') + '>' + y + '年</option>').join('');
   const aopts = '<option value="all">すべて</option>' + acctList.map(a => '<option value="' + esc(a) + '"' + (a === sel ? ' selected' : '') + '>' + esc(a) + '</option>').join('');
+  const sopts = (hasA && hasX) ? '<div class="field"><label for="cmp-src">今年の数字の元</label><select id="cmp-src" class="cmp-src"><option value="app"' + (src === 'app' ? ' selected' : '') + '>アプリの登録</option><option value="excel"' + (src === 'excel' ? ' selected' : '') + '>Excelの取り込み</option></select></div>' : '';
+  const selName = sel === 'all' ? '全科目' : sel;
   h += '<div class="ctrls"><div class="field"><label for="cmp-by">見る年</label><select id="cmp-by" class="cmp-year">' + yopts + '</select></div>' +
-    '<div class="field"><label for="cmp-acct">勘定科目</label><select id="cmp-acct" class="cmp-acct">' + aopts + '</select></div></div>' +
-    '<p class="hint">預り金（合宿費の集金と支払い）は、差し引きがゼロに近いので、支出に入れていません。</p>';
-  if(!py) h += '<p class="hint">' + (by - 1) + '年のデータがないので、' + by + '年だけを表示しています。</p>';
+    '<div class="field"><label for="cmp-acct">勘定科目</label><select id="cmp-acct" class="cmp-acct">' + aopts + '</select></div>' + sopts + '</div>';
+  if(src === 'app'){
+    h += '<p class="hint">' + by + '年の数字は、アプリに登録された立替です（返済前のものも入ります）。' + (pyX ? '去年はExcelの数字なので、立替以外の支払い（口座からの支払いなど）も入っています。そのため、去年のほうが大きく出やすいです。' : '') + '</p>';
+  }
+  if(src === 'excel' || pyX) h += '<p class="hint">Excelの数字では、預り金（合宿費の集金と支払い）は差し引きがゼロに近いので、支出に入れていません。</p>';
+  if(!py) h += '<p class="hint">' + (by - 1) + '年のデータがないので、' + by + '年だけを表示しています。去年のExcelを取り込むと、比べられます。</p>';
+  // this month so far, and the rest of the year
+  if(live && Pv){
+    const pct = (c, p) => p > 0 ? '<br><span class="hint">' + (c >= p ? '+' : '−') + Math.round(Math.abs(c - p) / p * 100) + '%</span>' : '';
+    const mrow = (lb, p, c) => '<tr><td>' + lb + '</td><td class="num">' + yenS(p) + '</td><td class="num">' + yenS(c) + '</td><td class="num">' + yenD(c - p) + pct(c, p) + '</td></tr>';
+    h += '<div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>' + esc(selName) + 'の支出</th><th class="num">' + py + '年</th><th class="num">' + by + '年</th><th class="num">差</th></tr></thead><tbody>' +
+      mrow((mi + 1) + '月（今月・途中）', ps[mi], cs[mi]) + mrow('1〜' + (mi + 1) + '月の合計', sumTo(ps, mi + 1), sumTo(cs, mi + 1)) + '</tbody></table></div>' +
+      '<p class="hint">' + py + '年の' + (mi + 1) + '月は、1か月ぶんの金額です。今月はまだ途中なので、月末に向けて増えます。</p>';
+    const P = cmpProject(cs, ps, mi), main = P.adj != null ? P.adj : P.base;
+    h += '<div class="notice warn"><strong>年末までの支出の予想（' + esc(selName) + '）：' + yenS(main) + '</strong><br>' +
+      '去年の1年間は ' + yenS(P.prevTotal) + '、今年はここまで ' + yenS(P.toDate) + '。<br>' +
+      '・去年と同じ動きなら　' + yenS(P.base) + '<br>' +
+      (P.adj != null ? '・ここまでのペース（去年の約' + (Math.round(P.ratio * 10) / 10) + '倍）で、残りも使うなら　' + yenS(P.adj) + '<br>' : '') +
+      '<span class="hint">合宿や大会など、大きな支出の時期が去年とずれると、予想もずれます。' + (src === 'app' ? 'アプリは立替だけなので、立替以外の支払いは入っていません。' : '') + '</span></div>';
+  }
   const labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']; labels.prevName = (by - 1) + '年'; labels.curName = by + '年';
   h += cmpChart(ps, cs, labels);
   h += '<div class="cmp-legend">' + (py ? '<span><span class="sw" style="background:var(--sx)"></span>' + (by - 1) + '年（去年）</span>' : '') +
-    '<span><span class="sw" style="background:var(--s1)"></span>' + by + '年</span><span class="hint">' + esc(sel === 'all' ? '全科目の支出' : sel) + '（単位：円。縦軸は万円）</span></div>';
-  // summary: income, spending, money on hand, rough year-end
-  const rem = Pv ? Pv.spend.reduce((t, v, i) => t + (i + 1 > last ? v : 0), 0) : null;
-  const rows = [['収入（部費・OB支援金）', Pv ? yenS(Pv.incTotal) : '－', yenS(C.incTotal)], ['支出', Pv ? yenS(Pv.spTotal) : '－', yenS(C.spTotal)]];
-  h += '<div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>' + by + '年の状況</th><th class="num">' + (py ? py + '年' : '') + '</th><th class="num">' + by + '年</th></tr></thead><tbody>' +
-    rows.map(r => '<tr><td>' + r[0] + '</td><td class="num">' + r[1] + '</td><td class="num">' + r[2] + '</td></tr>').join('') +
-    '<tr class="total"><td>残高（現金＋預金）</td><td class="num">' + (Pv ? yenS(Pv.balance) : '－') + '</td><td class="num">' + yenS(C.balance) + '</td></tr></tbody></table></div>';
-  if(rem != null){
-    h += '<div class="notice warn"><strong>年末の残高の目安：' + yenS(C.balance - rem) + '</strong><br>いまの残高から、去年の' + (last + 1 > 12 ? '（12月まで）' : (last + 1) + '月以降') + 'の支出 ' + yenS(rem) + ' を引いた金額です。' +
-      '収入は入れていません。去年と同じだけ使う前提の、おおまかな目安です。合宿など大きな支出の時期が変わると、ずれます。</div>';
+    '<span><span class="sw" style="background:var(--s1)"></span>' + by + '年' + (src === 'app' ? '（アプリ）' : '') + '</span><span class="hint">' + esc(selName) + 'の支出（単位：円。縦軸は万円）</span></div>';
+  // Excel only: income, money on hand, rough year-end balance
+  if(src === 'excel'){
+    const pvX = Pv && pyX ? Pv : null;
+    const rem = pvX ? pvX.spend.reduce((t, v, i) => t + (i + 1 > last ? v : 0), 0) : null;
+    const rows = [['収入（部費・OB支援金）', pvX ? yenS(pvX.incTotal) : '－', yenS(C.incTotal)], ['支出', pvX ? yenS(pvX.spTotal) : '－', yenS(C.spTotal)]];
+    h += '<div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>' + by + '年の状況</th><th class="num">' + (pvX ? (by - 1) + '年' : '') + '</th><th class="num">' + by + '年</th></tr></thead><tbody>' +
+      rows.map(r => '<tr><td>' + r[0] + '</td><td class="num">' + r[1] + '</td><td class="num">' + r[2] + '</td></tr>').join('') +
+      '<tr class="total"><td>残高（現金＋預金）</td><td class="num">' + (pvX ? yenS(pvX.balance) : '－') + '</td><td class="num">' + yenS(C.balance) + '</td></tr></tbody></table></div>';
+    if(rem != null){
+      h += '<div class="notice warn"><strong>年末の残高の目安：' + yenS(C.balance - rem) + '</strong><br>いまの残高から、去年の' + (last + 1 > 12 ? '（12月まで）' : (last + 1) + '月以降') + 'の支出 ' + yenS(rem) + ' を引いた金額です。' +
+        '収入は入れていません。去年と同じだけ使う前提の、おおまかな目安です。合宿など大きな支出の時期が変わると、ずれます。</div>';
+    }
   }
   // per-account table (same period)
   const lim = (X, a) => (X && X.perAcct.get(a) ? X.perAcct.get(a).reduce((t, v, i) => t + (i + 1 <= last ? v : 0), 0) : 0);
@@ -1361,7 +1442,7 @@ function renderCompare(){
   h += '<details><summary>月ごとの金額</summary><div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>月</th>' + (py ? '<th class="num">' + py + '年</th>' : '') + '<th class="num">' + by + '年</th>' + (py ? '<th class="num">差</th>' : '') + '</tr></thead><tbody>' +
     labels.map((lb, i) => '<tr><td>' + lb + '</td>' + (py ? '<td class="num">' + yenS(ps[i]) + '</td>' : '') + '<td class="num">' + yenS(cs[i]) + '</td>' + (py ? '<td class="num">' + yenD(cs[i] - ps[i]) + '</td>' : '') + '</tr>').join('') +
     '</tbody></table></div></details>';
-  const upd = state.compareMeta && state.compareMeta.updatedAt ? '<p class="doc-meta">最終更新 ' + esc(dayOf(Number(state.compareMeta.updatedAt))) + '</p>' : '';
+  const upd = state.compareMeta && state.compareMeta.updatedAt ? '<p class="doc-meta">Excelの最終更新 ' + esc(dayOf(Number(state.compareMeta.updatedAt))) + '</p>' : '';
   el.innerHTML = h + importBox + upd + '</section>';
   if($('#cmp-ta')) $('#cmp-ta').value = keepTa;
 }
@@ -1429,12 +1510,13 @@ async function purgeYear(year){
   };
   let batch = fs.batch(), ops = 0, inc = {count: 0, total: 0, acct: {}}, doneSets = 0;
   for(const s of cand.sets){
-    const n = 1 + s.items.reduce((t, e) => t + 1 + (e.receipt ? 1 : 0), 0);
+    const n = 1 + s.items.reduce((t, e) => t + 1 + (e.receipt ? 1 : 0) + (e.pay === 'transfer' ? 1 : 0), 0);
     if(ops && ops + n > 450){ await flush(batch, inc); batch = fs.batch(); ops = 0; inc = {count: 0, total: 0, acct: {}}; }
     batch.delete(state.db.doc('settlements/' + s.id)); inc.count++;
     s.items.forEach(e => {
       batch.delete(state.db.doc('expenses/' + e.id));
       if(e.receipt) batch.delete(state.db.doc('receipts/' + e.id));
+      if(e.pay === 'transfer') batch.delete(state.db.doc('bankinfo/' + e.id));
       inc.total += e.led; inc.acct[e.account] = (inc.acct[e.account] || 0) + e.led;
     });
     ops += n; doneSets++;
@@ -1467,6 +1549,9 @@ function applyHash(){
 }
 
 /* ---------- writes ---------- */
+function dropBank(items){
+  (items || []).forEach(e => { if(e.pay === 'transfer') state.db.doc('bankinfo/' + e.id).delete().catch(() => {}); });
+}
 async function createSettlement(key, side){
   const g = derive().groups.get(key);
   if(!g || !g.unsettled.length){ toast('返済する立替がありません', true); return; }
@@ -1475,9 +1560,11 @@ async function createSettlement(key, side){
     manager: g.name, expenseIds: g.unsettled.map(e => e.id), total: g.unsettledTotal, count: g.unsettled.length,
     treasurerAt: side === 't' ? now : null, managerAt: side === 'm' ? now : null, createdAt: now
   });
+  if(side === 't') dropBank(g.unsettled);
   toast(side === 't' ? '返済を記録しました。履歴と記録に反映されました' : '受け取りを記録しました。会計係の確認を待っています');
 }
 async function confirmSettlement(id, side){
+  const eff = state.d ? state.d.effSets.find(x => x.id === id) : null;
   const patch = side === 't' ? {treasurerAt: Date.now()} : {managerAt: Date.now()};
   try{
     await state.db.doc('settlements/' + id).update(patch);
@@ -1485,6 +1572,7 @@ async function confirmSettlement(id, side){
     if(e && (e.code === 'invalid_argument' || e.code === 'not-found')){ toast('この返済はすでに取り消されています', true); return; }
     throw e;
   }
+  if(side === 't' && eff) dropBank(eff.items);
   if(side === 'm'){
     state.flash = '受け取りを確認しました。ありがとうございます';
     clearTimeout(flashTimer); flashTimer = setTimeout(() => { state.flash = ''; if(state.d) renderViews(); }, 15000);
@@ -1502,6 +1590,7 @@ async function deleteExpense(id){
   if(d.used.has(id)){ toast('返済の手続き中の立替は削除できません', true); return; }
   await state.db.doc('expenses/' + id).delete();
   if(e.receipt && e.receipt.kind === 'doc') await state.db.doc('receipts/' + id).delete().catch(() => {});
+  dropBank([e]);
   toast('削除しました');
 }
 async function addMember(name, self){
@@ -1609,7 +1698,8 @@ async function openReceipt(id){
   const e = state.d && state.d.byId.get(id);
   if(!e || !e.receipt) return;
   const lb = $('#lightbox'), img = $('#lb-img'), msg = $('#lb-msg');
-  img.hidden = true; img.removeAttribute('src'); msg.hidden = false; msg.textContent = '読み込み中…';
+  img.hidden = true; img.removeAttribute('src'); msg.hidden = false; msg.className = ''; msg.textContent = '読み込み中…';
+  $('#lb-copy').hidden = true; lb.setAttribute('aria-label', 'レシートの写真');
   lb.hidden = false; $('#lb-close').focus();
   img.onload = () => { msg.hidden = true; img.hidden = false; };
   img.onerror = () => { img.hidden = true; msg.hidden = false; msg.textContent = '写真を読み込めませんでした'; };
@@ -1620,7 +1710,21 @@ async function openReceipt(id){
     else msg.textContent = '写真が見つかりませんでした';
   }catch(err){ msg.textContent = '写真を読み込めませんでした'; }
 }
-function closeLightbox(){ $('#lightbox').hidden = true; $('#lb-img').removeAttribute('src'); }
+async function openBank(id){
+  const e = state.d && state.d.byId.get(id);
+  if(!e || !state.isOwner || !state.db) return;
+  const lb = $('#lightbox'), img = $('#lb-img'), msg = $('#lb-msg'), cp = $('#lb-copy');
+  img.hidden = true; img.removeAttribute('src'); cp.hidden = true; cp.dataset.text = '';
+  msg.className = ''; msg.hidden = false; msg.textContent = '読み込み中…';
+  lb.setAttribute('aria-label', '振込先の口座'); lb.hidden = false; $('#lb-close').focus();
+  try{
+    const snap = await state.db.doc('bankinfo/' + id).get(), b = snap.exists ? snap.data() : null;
+    if(!b){ msg.textContent = '口座の情報がありません（返済を記録すると、自動で削除されます）'; return; }
+    const t = ['振込先：' + e.manager + ' さん　' + yen(e.amount), '銀行：' + b.bank, '支店：' + b.branch, '種類：' + b.type, '口座番号：' + b.num, '名義：' + b.holder].join('\n');
+    msg.className = 'pre'; msg.textContent = t; cp.dataset.text = t; cp.hidden = false;
+  }catch(err){ msg.textContent = '口座の情報を読み込めませんでした'; }
+}
+function closeLightbox(){ $('#lightbox').hidden = true; $('#lb-img').removeAttribute('src'); $('#lb-copy').hidden = true; $('#lb-copy').dataset.text = ''; }
 
 /* ---------- form ---------- */
 function setPhoto(file){
@@ -1634,11 +1738,20 @@ function bathHeld(name){
   const k = keyOf(name), t = state.d && state.d.tickets.get(k);
   return t ? t.held : 0;
 }
+const PAY_MIN = 10000;
+function updatePayUI(){
+  const amt = parseAmount($('#f-amount').value);
+  const show = !$('#amt-field').hidden && Number.isFinite(amt) && amt >= PAY_MIN;
+  $('#pay-field').hidden = !show;
+  const t = show && ($('input[name=f-pay]:checked') || {}).value === 'transfer';
+  $('#bank-box').hidden = !t;
+}
 function updateBathUI(){
   const isBath = $('#f-acct').value === BATH;
   $('#bath-box').hidden = !isBath;
   const useOnly = isBath && (Number($('#f-bought').value) || 0) === 0;
   $('#amt-field').hidden = useOnly; $('#rec-field').hidden = useOnly;
+  updatePayUI();
   $('label[for=f-desc]').textContent = isBath ? '摘要（省略できます）' : '摘要（何を買ったか）';
   $('#f-desc').placeholder = isBath ? '空欄なら「14名分」と入ります' : '例：テーピング、グリップ、ゴミ袋代';
   if(!isBath) return;
@@ -1690,6 +1803,15 @@ async function submitForm(ev){
     if(!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return showFormError('金額は1円から100万円の数字で入力してください。', 'f-amount');
     if(!state.photo && !noRec) return showFormError('レシートの写真を追加するか、「レシートがない」にチェックしてください。');
   }
+  const payT = !useOnly && amount >= PAY_MIN && (($('input[name=f-pay]:checked') || {}).value === 'transfer');
+  let bank = null;
+  if(payT){
+    bank = {bank: nk($('#f-bank').value), branch: nk($('#f-branch').value), type: $('#f-btype').value === '当座' ? '当座' : '普通', num: nfk($('#f-bnum').value), holder: nk($('#f-bname').value)};
+    if(!bank.bank) return showFormError('振込先の銀行名を入力してください。', 'f-bank');
+    if(!bank.branch) return showFormError('振込先の支店名を入力してください。', 'f-branch');
+    if(!/^\d{1,12}$/.test(bank.num)) return showFormError('口座番号を、数字だけで入力してください。', 'f-bnum');
+    if(!bank.holder) return showFormError('口座名義を入力してください。', 'f-bname');
+  }
   showFormError('');
   state.busy.add('submit');
   const btn = $('#b-submit'); btn.disabled = true; btn.textContent = '送信中…';
@@ -1699,13 +1821,21 @@ async function submitForm(ev){
     if(!useOnly && state.photo && !noRec) receipt = await storeReceipt(state.photo, ref.id);
     const rec = {date, manager: name, account: acct, desc, amount, receipt, uid: state.user.uid, createdAt: Date.now()};
     if(isBath) rec.bath = {bought, used, unit: BATH_UNIT};
-    await ref.set(rec);
+    if(payT){
+      rec.pay = 'transfer';
+      await state.db.doc('bankinfo/' + ref.id).set(Object.assign({}, bank, {uid: state.user.uid, createdAt: Date.now()}));
+    }
+    try{ await ref.set(rec); }
+    catch(err){ if(payT) await state.db.doc('bankinfo/' + ref.id).delete().catch(() => {}); throw err; }
     setName(name);
     $('#f-amount').value = ''; $('#f-desc').value = ''; $('#f-acct').value = ''; $('#f-norec').checked = false; setPhoto(null);
     $('#f-used').value = ''; $('#f-bought').value = '0'; state.autoAmt = null;
+    ['#f-bank', '#f-branch', '#f-bnum', '#f-bname'].forEach(q => { $(q).value = ''; }); $('#f-btype').value = '普通';
+    const rc = document.querySelector('input[name=f-pay][value=cash]'); if(rc) rc.checked = true;
+    updatePayUI();
     $('#f-date').value = todayStr();
-    toast(useOnly ? '登録しました　銭湯券 ' + used + '枚' : '登録しました　' + yen(amount));
-    notifyLine('【BYB立替】' + name + 'さんが立替を登録しました\n' + acct + (useOnly ? '　手持ちの銭湯券 ' + used + '枚を使用' : '　' + yen(amount)) + '\n摘要：' + desc);
+    toast(useOnly ? '登録しました　銭湯券 ' + used + '枚' : '登録しました　' + yen(amount) + (payT ? '（振込希望）' : ''));
+    notifyLine('【BYB立替】' + name + 'さんが立替を登録しました\n' + acct + (useOnly ? '　手持ちの銭湯券 ' + used + '枚を使用' : '　' + yen(amount)) + '\n摘要：' + desc + (payT ? '\n支払い：振込希望（口座は会計係の画面で確認）' : ''));
     renderViews();
   }catch(e){
     showFormError(e && e.message === 'too_large' ? '写真が大きすぎて保存できませんでした。撮り直してください。' : errMsg(e));
@@ -1736,6 +1866,7 @@ document.addEventListener('click', ev => {
     state.tab = list.indexOf(state.prevTab) >= 0 ? state.prevTab : list[0]; renderTabs();
     try{ location.hash = state.tab; }catch(e){}
   }else if(act === 'receipt') openReceipt(id);
+  else if(act === 'bank') openBank(id);
   else if(act === 'ask'){ setConfirm(key); renderViews(); }
   else if(act === 'cancel'){ setConfirm(null); renderViews(); }
   else if(act === 'do') runAction(key);
@@ -1777,6 +1908,10 @@ document.addEventListener('submit', ev => {
 window.addEventListener('hashchange', applyHash);
 document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && !$('#lightbox').hidden) closeLightbox(); });
 $('#lb-close').addEventListener('click', closeLightbox);
+$('#lb-copy').addEventListener('click', async () => {
+  const t = $('#lb-copy').dataset.text || '';
+  try{ await navigator.clipboard.writeText(t); toast('口座の情報をコピーしました'); }catch(e){ toast('コピーできませんでした。画面の文字を見て入力してください', true); }
+});
 $('#lightbox').addEventListener('click', ev => { if(ev.target === $('#lightbox')) closeLightbox(); });
 
 $('#form').addEventListener('submit', submitForm);
@@ -1797,6 +1932,8 @@ document.addEventListener('change', ev => {
   if(s) changeAccount(s.dataset.id, s.value);
   const cy = ev.target.closest && ev.target.closest('.cmp-year');
   if(cy){ state.cmpYear = cy.value; renderCompare(); return; }
+  const cr = ev.target.closest && ev.target.closest('.cmp-src');
+  if(cr){ state.cmpSrc = cr.value; renderCompare(); return; }
   const ca = ev.target.closest && ev.target.closest('.cmp-acct');
   if(ca){ state.cmpAcct = ca.value; renderCompare(); return; }
   const y = ev.target.closest && ev.target.closest('.h-year');
@@ -1808,6 +1945,7 @@ $('#b-copy').addEventListener('click', copyLedger);
 $('#f-acct').addEventListener('change', updateBathUI);
 $('#f-used').addEventListener('input', updateBathUI);
 $('#f-amount').addEventListener('input', updateBathUI);
+document.querySelectorAll('input[name=f-pay]').forEach(r => r.addEventListener('change', updatePayUI));
 $('#f-bought').addEventListener('change', () => {
   const bought = Number($('#f-bought').value) || 0, cur = $('#f-amount').value.trim();
   if(bought > 0 && (cur === '' || cur === String(state.autoAmt))){ state.autoAmt = bought * BATH_UNIT; $('#f-amount').value = String(state.autoAmt); }

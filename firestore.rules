@@ -90,6 +90,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // 整理した古い年の合計（勘定科目ごと）。読むのも編集するのも会計係だけ
+      match /pages/archive {
+        allow read: if teamExists(team) && isTreasurer(team);
+        allow create, update: if teamExists(team) && isTreasurer(team)
+          && request.resource.data.keys().hasOnly(['body', 'updatedAt', 'updatedBy'])
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 30000;
+        allow delete: if false;
+      }
+
       // メンバー（立替を登録する人の名前の一覧）
       match /members/{id} {
         allow read: if signedIn() && teamExists(team);
@@ -108,10 +118,29 @@ service cloud.firestore {
         allow read: if signedIn() && teamExists(team);
         allow create: if signedIn() && teamExists(team)
           && validAmount()
+          && request.resource.data.get('pay', 'cash') in ['cash', 'transfer']
           && request.resource.data.uid == request.auth.uid;
         // 勘定科目の変更は会計係だけ
         allow update: if teamExists(team) && isTreasurer(team);
         // 削除は、登録した端末か会計係
+        allow delete: if teamExists(team)
+          && (isTreasurer(team) || resource.data.uid == request.auth.uid);
+      }
+
+      // 振込先の口座情報（立替の登録で「振込」を選んだときだけ）。読めるのは会計係と、登録した端末だけ。
+      // 返済が記録されると、アプリが削除します
+      match /bankinfo/{id} {
+        allow read: if teamExists(team)
+          && (isTreasurer(team) || (signedIn() && resource.data.uid == request.auth.uid));
+        allow create: if signedIn() && teamExists(team)
+          && request.resource.data.keys().hasOnly(['bank', 'branch', 'type', 'num', 'holder', 'uid', 'createdAt'])
+          && request.resource.data.bank is string && request.resource.data.bank.size() > 0 && request.resource.data.bank.size() <= 40
+          && request.resource.data.branch is string && request.resource.data.branch.size() > 0 && request.resource.data.branch.size() <= 40
+          && request.resource.data.type in ['普通', '当座']
+          && request.resource.data.num is string && request.resource.data.num.matches('^[0-9]{1,12}$')
+          && request.resource.data.holder is string && request.resource.data.holder.size() > 0 && request.resource.data.holder.size() <= 40
+          && request.resource.data.uid == request.auth.uid;
+        allow update: if false;
         allow delete: if teamExists(team)
           && (isTreasurer(team) || resource.data.uid == request.auth.uid);
       }
