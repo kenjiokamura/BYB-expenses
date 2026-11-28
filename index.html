@@ -201,6 +201,8 @@ textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .set{display:grid; gap:10px; padding:12px; margin-top:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
 .set-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:6px 12px}
 .pills{display:flex; flex-wrap:wrap; gap:6px}
+.purge-row{display:flex; flex-direction:column; gap:8px; padding:10px 0; border-top:1px solid var(--line)}
+.purge-row:first-child{border-top:0}
 .cmp-chart{width:100%; height:auto; display:block}
 .cmp-chart text{font-family:var(--font-ui); fill:var(--muted); font-size:10px}
 .cmp-legend{display:flex; flex-wrap:wrap; gap:4px 16px; font-size:.85rem}
@@ -429,6 +431,13 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
       </div>
       <div class="card stack">
         <div>
+          <h2>古いデータの整理（容量を空ける）</h2>
+          <p class="hint">前の年の立替・返済・レシート写真を削除できます。勘定科目ごとの合計は残るので、履歴の円グラフは、そのまま見られます。月ごとの前年比較は、別に取り込んだExcelのデータを使うので、影響しません。</p>
+        </div>
+        <div id="adm-purge"></div>
+      </div>
+      <div class="card stack">
+        <div>
           <h2>LINE通知</h2>
           <p class="hint">立替が登録されると、会計係のLINEに自動で知らせます。設定の手順は「LINE通知のセットアップ手順」にあります。</p>
         </div>
@@ -512,7 +521,7 @@ const state = {
   expenses: [], settlements: [], members: [], membersLoaded: false, teamTreasurers: [], loaded: {exp: false, set: false},
   tab: 'submit', myName: nk(lsGet('byb.name') || ''),
   confirm: null, busy: new Set(), photo: null, previewUrl: null, yearTouched: false, histYear: null, team: '', user: null,
-  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, manualDoc: null, manualEdit: false, compareDoc: null, compareMeta: null, cmpYear: '', cmpAcct: 'all', notifyUrl: '',
+  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, manualDoc: null, manualEdit: false, compareDoc: null, compareMeta: null, archive: null, histAll: false, cmpYear: '', cmpAcct: 'all', notifyUrl: '',
   prevTab: '', errCode: '', flash: ''
 };
 const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', rules: 'ルール', manual: 'マニュアル', admin: '管理'};
@@ -627,7 +636,21 @@ const DEFAULT_MANUAL = [
   '',
   '## 去年との比較',
   '- 「履歴」タブの下に、月ごとの支出を去年と比べるグラフがあります。',
-  '- 会計Excelの表（月・日・摘要・勘定科目・入金・出金）を貼り付けて取り込みます。年が替わったら、新しい年の表を取り込んでください。'
+  '- 会計Excelの表（月・日・摘要・勘定科目・入金・出金）を貼り付けて取り込みます。年が替わったら、新しい年の表を取り込んでください。',
+  '',
+  '## システムの引き継ぎ（アプリ）',
+  '会計係が替わるときに、やることです。',
+  '- このアプリは、GitHub（プログラムの置き場）と、Firebase（データの保存場所）でできています。',
+  '- 1. GitHubの Organization に、次の会計係を「Owner」として追加します。',
+  '- 2. Firebaseコンソールの「プロジェクトの設定」→「ユーザーと権限」に、次の会計係を追加します。',
+  '- 3. アプリの「管理」タブで、次の会計係のメールアドレスを追加します。',
+  '- 4. GitHubの firebase-config.js にある会計係のメールアドレスを、次の会計係のものに書き換えます。',
+  '- 5. Firebaseの「ルール」の中に、最初の会計係として固定されているメールアドレス（isOwner の行）があります。次の会計係のものに書き換えて、「公開」します。',
+  '- 6. LINE通知は、次の会計係のLINEアカウントで設定し直します。手順は「LINE通知のセットアップ手順」を見てください。',
+  '- 7. 次の会計係が、自分のGoogleアカウントでログインできることを確認します。',
+  '- 8. 確認できたら、前の会計係を、アプリの「管理」タブと、GitHub・Firebaseから外します。',
+  '> 最初の会計係は、管理タブから外せません。4と5を書き換えてから外してください。',
+  '> リンクは変わらないので、マネージャーへの連絡は要りません。'
 ].join('\n');
 const BATH = '銭湯代', BATH_UNIT = 540;
 const INITIAL_MEMBERS = ['門脇', '川田', '伊達', '児玉', '申', '鈴木', '田中', '富田'];
@@ -911,22 +934,25 @@ function pieSvg(slices, total){
 function renderHistory(d){
   const done = d.effSets.filter(s => s.paid).sort((a, b) => b.payAt - a.payAt);
   const yearOf = s => String(new Date(s.payAt).getFullYear());
-  const years = Array.from(new Set(done.map(yearOf))).sort().reverse();
+  const arch = (state.archive && state.archive.years) || {}, archYears = Object.keys(arch);
+  const years = Array.from(new Set(done.map(yearOf).concat(archYears))).sort().reverse();
   const cur = String(new Date().getFullYear());
   let sel = state.histYear;
   if(sel !== 'all' && years.indexOf(sel) < 0) sel = years.indexOf(cur) >= 0 ? cur : (years[0] || cur);
   const shown = sel === 'all' ? done : done.filter(s => yearOf(s) === sel);
-  const total = shown.reduce((t, s) => t + s.total, 0);
+  const archSel = sel === 'all' ? archYears : (arch[sel] ? [sel] : []);
+  const aCount = archSel.reduce((t, y) => t + (arch[y].count || 0), 0), aTotal = archSel.reduce((t, y) => t + (arch[y].total || 0), 0);
+  const total = shown.reduce((t, s) => t + s.total, 0) + aTotal;
   const unconf = shown.filter(s => !s.done).length;
 
   const yopts = '<option value="all"' + (sel === 'all' ? ' selected' : '') + '>すべて</option>' +
     (years.length ? years : [cur]).map(y => '<option value="' + esc(y) + '"' + (y === sel ? ' selected' : '') + '>' + esc(y) + '年</option>').join('');
   let h = '<section class="card sum-card"><div><div class="lbl">' + (sel === 'all' ? 'これまでに返済した合計' : esc(sel) + '年に返済した合計') + '</div>' +
-    '<div class="big">' + yen(total) + '</div><div class="hint">' + shown.length + '回の返済' + (unconf ? '（受け取り確認まだ ' + unconf + '件）' : '') + '</div></div>' +
+    '<div class="big">' + yen(total) + '</div><div class="hint">' + (shown.length + aCount) + '回の返済' + (unconf ? '（受け取り確認まだ ' + unconf + '件）' : '') + '</div></div>' +
     '<div class="field"><label for="h-year">表示する年</label><select id="h-year" class="h-year">' + yopts + '</select></div></section>';
 
   const extras = d.exps.filter(e => e.amount === 0 && e.led > 0 && (sel === 'all' || e.date.slice(0, 4) === sel));
-  const ledTotal = shown.reduce((t, s) => t + s.items.reduce((u, e) => u + e.led, 0), 0) + extras.reduce((t, e) => t + e.led, 0);
+  const ledTotal = shown.reduce((t, s) => t + s.items.reduce((u, e) => u + e.led, 0), 0) + extras.reduce((t, e) => t + e.led, 0) + aTotal;
   const hasBath = extras.length > 0 || shown.some(s => s.items.some(e => e.bath));
   h += '<section class="card stack"><h2>勘定科目ごとの金額</h2>';
   if(!ledTotal){
@@ -935,6 +961,7 @@ function renderHistory(d){
     const byAcct = new Map();
     shown.forEach(s => s.items.forEach(e => byAcct.set(e.account, (byAcct.get(e.account) || 0) + e.led)));
     extras.forEach(e => byAcct.set(e.account, (byAcct.get(e.account) || 0) + e.led));
+    archSel.forEach(y => Object.keys(arch[y].acct || {}).forEach(a => byAcct.set(a, (byAcct.get(a) || 0) + arch[y].acct[a])));
     const parts = Array.from(byAcct, ([name, value]) => ({name, value})).sort((a, b) => (b.value - a.value) || (a.name < b.name ? -1 : 1));
     const fold = parts.length > 8;
     const colorOf = i => (!fold || i < 7) ? 'var(--s' + (i + 1) + ')' : 'var(--sx)';
@@ -948,17 +975,25 @@ function renderHistory(d){
       parts.map((p, i) => '<li><span class="sw" style="background:' + colorOf(i) + '"></span><span class="nm">' + esc(p.name) + '</span>' +
         '<span class="pc">' + fmtPct(p.value / ledTotal) + '</span><span class="am">' + yen(p.value) + '</span></li>').join('') + '</ul>';
     if(fold) h += '<p class="hint">灰色は、金額の小さい' + (parts.length - 7) + '科目をまとめた部分です。</p>';
+    if(aCount) h += '<p class="hint">うち ' + aCount + '回分は、詳しい記録を整理（削除）済みで、合計だけが入っています。</p>';
     if(hasBath) h += '<p class="hint">銭湯代は、使った枚数分（1枚 ' + yen(BATH_UNIT) + '）だけを数えています。使っていない券は含みません。</p>';
   }
   h += '</section>';
 
-  shown.forEach(s => {
+  const LIMIT = 3, list = state.histAll ? shown : shown.slice(0, LIMIT);
+  list.forEach(s => {
+    const cancel = ask('cs:' + s.id, '取り消す', 'small ghost',
+      (s.done ? '受け取りの確認まで済んだ返済です。' : '') + s.manager + ' さんへの ' + yen(s.total) + ' の返済を取り消します。立替は未返済に戻り、履歴・記録・円グラフからも外れます。本当に取り消しますか？', '取り消す');
     h += '<article class="card hist"><div class="hist-head"><strong>' + esc(s.manager) + '</strong><span class="amt">' + yen(s.total) + '</span></div>' +
       '<div class="pills">' + (s.done
         ? pill('ok', '返済完了 ' + dayOf(s.payAt)) + pill('idle', '返済 ' + stamp(s.treasurerAt)) + pill('ok', '受け取り確認 ' + stamp(s.managerAt))
         : pill('wait', '受け取り確認まだ') + pill('idle', '返済 ' + stamp(s.treasurerAt))) + '</div>' +
-      '<details><summary>内訳 ' + s.items.length + '件</summary><ul class="items">' + s.items.map(e => itemRow(e, {})).join('') + '</ul></details></article>';
+      '<details><summary>内訳 ' + s.items.length + '件</summary><ul class="items">' + s.items.map(e => itemRow(e, {})).join('') + '</ul></details>' +
+      '<div class="btn-row">' + cancel + '</div></article>';
   });
+  if(shown.length > LIMIT){
+    h += '<button type="button" class="btn wide" data-act="hist-all">' + (state.histAll ? '最近の ' + LIMIT + '件だけにする' : 'ほかの ' + (shown.length - LIMIT) + '件も表示する') + '</button>';
+  }
   $('#history-body').innerHTML = h;
 }
 const sum2 = list => list.reduce((t, p) => t + p.value, 0);
@@ -1094,6 +1129,7 @@ function renderAdmin(){
         ask('dm:' + m.id, '外す', 'small ghost', '「' + m.name + '」を一覧から外します。過去の立替の記録は残ります。', '外す') + '</li>').join('') + '</ul>'
     : '<p class="hint">' + (state.membersLoaded ? 'まだ誰も登録されていません。' : '読み込み中…') + '</p>';
   $('#adm-seed').hidden = !(state.membersLoaded && !ms.length);
+  renderPurge();
 }
 function fmtDoc(text){
   const lines = String(text || '').split('\n');
@@ -1348,6 +1384,65 @@ async function importCompare(){
   toast(keys.map(k => k.replace('-cash', '年 現金').replace('-bank', '年 預金')).join('、') + ' を取り込みました（' + res.n + '行）');
 }
 
+/* ---------- tidy up old years: delete the details, keep the totals per 勘定科目 ---------- */
+function purgeCandidates(d){
+  const thisY = new Date().getFullYear(), by = new Map();
+  d.effSets.forEach(s => {
+    if(!s.paid) return;
+    const y = new Date(s.payAt).getFullYear();
+    if(!(y < thisY)) return;
+    const o = by.get(y) || {year: y, sets: [], keep: 0, expenses: 0, photos: 0};
+    by.set(y, o);
+    if(s.items.some(e => e.bath)){ o.keep++; return; }   /* bath tickets carry over between years: keep those */
+    o.sets.push(s); o.expenses += s.items.length; o.photos += s.items.filter(e => e.receipt).length;
+  });
+  return Array.from(by.values()).sort((a, b) => b.year - a.year);
+}
+function renderPurge(){
+  const el = $('#adm-purge');
+  if(!el || !state.isOwner || !state.d) return;
+  const cand = purgeCandidates(state.d).filter(o => o.sets.length || o.keep);
+  const arch = (state.archive && state.archive.years) || {};
+  let h = '';
+  const rows = cand.filter(o => o.sets.length);
+  if(!rows.length) h += '<p class="hint">整理できる古いデータは、いまありません（前の年に返済した分が対象です）。</p>';
+  else h += rows.map(o => '<div class="purge-row"><div><strong>' + o.year + '年</strong><div class="hint">返済 ' + o.sets.length + '回・立替 ' + o.expenses + '件・レシート写真 ' + o.photos + '枚' +
+      (o.keep ? '（銭湯代を含む返済 ' + o.keep + '回は、銭湯券の計算に使うため残します）' : '') + '</div></div>' +
+      ask('purge:' + o.year, '詳しい記録を削除', 'small ghost',
+        o.year + '年の返済 ' + o.sets.length + '回（立替 ' + o.expenses + '件、レシート写真 ' + o.photos + '枚）の詳しい記録を、完全に削除します。勘定科目ごとの合計だけが、履歴に残ります。元に戻せません。「記録」の表は、会計Excelに貼り終えましたか？本当に削除しますか？',
+        '削除する') + '</div>').join('');
+  const ys = Object.keys(arch).sort().reverse();
+  if(ys.length) h += '<p class="hint" style="margin-top:10px">整理済み（合計は履歴に残っています）</p><ul class="rows">' +
+    ys.map(y => '<li><span class="nm">' + esc(y) + '年　返済 ' + arch[y].count + '回　' + yen(arch[y].total) + '</span></li>').join('') + '</ul>';
+  el.innerHTML = h;
+}
+async function purgeYear(year){
+  const cand = purgeCandidates(derive()).find(o => o.year === year);
+  if(!cand || !cand.sets.length){ toast('整理できる記録がありません', true); return; }
+  const arch = state.archive && state.archive.years ? JSON.parse(JSON.stringify(state.archive)) : {v: 1, years: {}};
+  const flush = async (batch, inc) => {
+    await batch.commit();                      /* totals are saved right after each deletion, so they are never lost */
+    const y = arch.years[year] || (arch.years[year] = {count: 0, total: 0, acct: {}});
+    y.count += inc.count; y.total += inc.total;
+    Object.keys(inc.acct).forEach(a => { y.acct[a] = (y.acct[a] || 0) + inc.acct[a]; });
+    await state.db.doc('pages/archive').set({body: JSON.stringify(arch), updatedAt: Date.now(), updatedBy: lower(state.user.email)});
+  };
+  let batch = fs.batch(), ops = 0, inc = {count: 0, total: 0, acct: {}}, doneSets = 0;
+  for(const s of cand.sets){
+    const n = 1 + s.items.reduce((t, e) => t + 1 + (e.receipt ? 1 : 0), 0);
+    if(ops && ops + n > 450){ await flush(batch, inc); batch = fs.batch(); ops = 0; inc = {count: 0, total: 0, acct: {}}; }
+    batch.delete(state.db.doc('settlements/' + s.id)); inc.count++;
+    s.items.forEach(e => {
+      batch.delete(state.db.doc('expenses/' + e.id));
+      if(e.receipt) batch.delete(state.db.doc('receipts/' + e.id));
+      inc.total += e.led; inc.acct[e.account] = (inc.acct[e.account] || 0) + e.led;
+    });
+    ops += n; doneSets++;
+  }
+  if(ops) await flush(batch, inc);
+  toast(year + '年の詳しい記録を削除しました（返済 ' + doneSets + '回分）');
+}
+
 function renderViews(){
   syncManualSub();
   const d = derive(); state.d = d;
@@ -1468,6 +1563,7 @@ async function runAction(key){
     else if(kind === 'dm'){ await state.db.doc('members/' + arg).delete(); toast('メンバーを外しました'); }
     else if(kind === 'dt') await removeTreasurer(arg);
     else if(kind === 'seed') await seedMembers();
+    else if(kind === 'purge') await purgeYear(Number(arg));
   }catch(e){
     toast(errMsg(e), true);
   }finally{
@@ -1658,6 +1754,7 @@ document.addEventListener('click', ev => {
   else if(DOCS[id] && act === 'doc-reset'){ const ta = $('#ta-' + id); if(ta) ta.value = DOCS[id].def(); }
   else if(DOCS[id] && act === 'doc-save') saveDoc(id);
   else if(act === 'cmp-import') importCompare();
+  else if(act === 'hist-all'){ state.histAll = !state.histAll; renderViews(); }
   else if(act === 'savenotify') saveNotify();
   else if(act === 'testnotify'){ if(!state.notifyUrl) toast('先に、通知用のURLを保存してください', true); else { notifyLine('【BYB立替】テスト通知です。この文章が届いていれば、設定は完了です。'); toast('テストを送りました。LINEを確認してください'); } }
   else if(act === 'copylink') copyLink();
@@ -1758,12 +1855,12 @@ function subscribe(db){
     renderWho(); if(changed) applyHash(); renderViews();
   }, e => console.error(e)));
 }
-const docGen = {manual: -1, compare: -1};
+const docGen = {manual: -1, compare: -1, archive: -1};
 function syncManualSub(){
   /* the treasurer-only pages (manual, comparison data) are read only while a treasurer is signed in */
   if(!state.db) return;
   if(!state.isOwner){
-    if(state.manualDoc || state.compareDoc){ state.manualDoc = null; state.manualEdit = false; state.compareDoc = null; state.compareMeta = null; }
+    if(state.manualDoc || state.compareDoc || state.archive){ state.manualDoc = null; state.manualEdit = false; state.compareDoc = null; state.compareMeta = null; state.archive = null; }
     return;
   }
   if(docGen.manual !== subGen){
@@ -1779,6 +1876,16 @@ function syncManualSub(){
       state.compareDoc = o && o.slots && typeof o.slots === 'object' ? o : null; state.compareMeta = sn.exists ? sn.data() : null;
       renderCompare();
     }, e => { console.error(e); docGen.compare = -1; }));
+  }
+  if(docGen.archive !== subGen){
+    docGen.archive = subGen;
+    subs.push(state.db.doc('pages/archive').onSnapshot(sn => {
+      let o = null;
+      if(sn.exists){ try{ o = JSON.parse(sn.data().body); }catch(e){ o = null; } }
+      state.archive = o && o.years && typeof o.years === 'object' ? o : null;
+      if(state.d) renderHistory(state.d);
+      renderPurge();
+    }, e => { console.error(e); docGen.archive = -1; }));
   }
 }
 document.addEventListener('visibilitychange', () => {
