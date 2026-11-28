@@ -201,6 +201,18 @@ textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .set{display:grid; gap:10px; padding:12px; margin-top:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2)}
 .set-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:6px 12px}
 .pills{display:flex; flex-wrap:wrap; gap:6px}
+.cmp-chart{width:100%; height:auto; display:block}
+.cmp-chart text{font-family:var(--font-ui); fill:var(--muted); font-size:10px}
+.cmp-legend{display:flex; flex-wrap:wrap; gap:4px 16px; font-size:.85rem}
+.cmp-legend .sw{display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px}
+.cmp-tbl{font-size:.8rem}
+.cmp-tbl th, .cmp-tbl td{padding:8px 7px; white-space:normal}
+.cmp-tbl td.num, .cmp-tbl th.num{white-space:nowrap}
+.cmp-ta{min-height:150px !important; font-size:14px !important}
+.set.await{border-color:var(--accent); background:var(--accent-soft)}
+.okmsg{padding:12px 14px; border-radius:10px; background:var(--ok-soft); color:var(--ok); font-weight:700}
+.linkbtn{appearance:none; border:0; background:none; padding:6px 2px; color:var(--accent); font-size:.85rem; text-decoration:underline; text-underline-offset:3px; cursor:pointer}
+.sub{margin-top:-2px}
 details summary{cursor:pointer; color:var(--muted); font-size:.85rem; min-height:32px; display:flex; align-items:center}
 .confirm-row{display:grid; gap:10px; padding:12px; border-radius:10px; background:var(--accent-soft)}
 .confirm-row p{font-size:.9rem; text-wrap:pretty}
@@ -361,8 +373,8 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
             <label for="l-status">返済状況</label>
             <select id="l-status">
               <option value="all">すべて</option>
-              <option value="done">返済完了のみ</option>
-              <option value="open">未完了のみ</option>
+              <option value="done">返済済みのみ</option>
+              <option value="open">未返済のみ</option>
             </select>
           </div>
         </div>
@@ -385,8 +397,13 @@ td.none{white-space:normal; color:var(--muted); text-align:center; padding:22px}
       <div id="rules-body" class="stack"></div>
     </section>
 
+    <section id="view-manual" class="panel" hidden>
+      <div id="manual-body" class="stack"></div>
+    </section>
+
     <section id="view-history" class="panel" hidden>
       <div id="history-body" class="stack"></div>
+      <div id="compare-body" class="stack" style="margin-top:16px"></div>
     </section>
 
     <section id="view-admin" class="panel" hidden>
@@ -495,10 +512,12 @@ const state = {
   expenses: [], settlements: [], members: [], membersLoaded: false, teamTreasurers: [], loaded: {exp: false, set: false},
   tab: 'submit', myName: nk(lsGet('byb.name') || ''),
   confirm: null, busy: new Set(), photo: null, previewUrl: null, yearTouched: false, histYear: null, team: '', user: null,
-  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, notifyUrl: ''
+  d: null, ledgerRows: [], autoAmt: null, rulesDoc: null, rulesEdit: false, manualDoc: null, manualEdit: false, compareDoc: null, compareMeta: null, cmpYear: '', cmpAcct: 'all', notifyUrl: '',
+  prevTab: '', errCode: '', flash: ''
 };
-const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', rules: 'ルール', admin: '管理'};
-const tabList = () => state.isOwner ? ['payout', 'tickets', 'ledger', 'history', 'rules', 'admin'] : ['submit', 'mine', 'rules'];
+const TAB_LABEL = {submit: '登録', mine: '自分の立替', payout: '精算', tickets: '銭湯券', ledger: '記録', history: '履歴', rules: 'ルール', manual: 'マニュアル', admin: '管理'};
+const tabList = () => state.isOwner ? ['payout', 'tickets', 'ledger', 'history', 'manual', 'admin'] : ['submit', 'mine'];
+const EXTRA_PAGES = ['rules']; /* reachable from the link beside the login button, not from the tab bar */
 const DEFAULT_RULES = [
   '## BYB 立替精算のルール（2026年度）',
   'みなさん日頃のご協力ありがとうございます。立替の登録は、次のルールでお願いします。',
@@ -526,6 +545,89 @@ const DEFAULT_RULES = [
   '',
   'みなさん日頃のご協力ありがとうございます。',
   '> （岡村作成）'
+].join('\n');
+const DEFAULT_MANUAL = [
+  '## BYB 現役会計係マニュアル',
+  '会計係の引き継ぎ用です。毎年、代が替わるときに、金額・連絡先・日程を更新してください。',
+  '> （岡村作成）',
+  '',
+  '## BYBの口座',
+  '- 三菱UFJ銀行　綱島支店（店番 640）　普通口座',
+  '- 口座番号は、このページを編集して、ここに書き足してください。',
+  '- 暗証番号は、このページには書かず、別の安全な場所で引き継いでください。',
+  '',
+  '## 1年の流れ',
+  '- 部費の徴収は、年に2回です。前期は5〜6月、後期は8〜9月。',
+  '- 新入生の部費は、後期だけ集めます。',
+  '- 部費の金額：現役 ¥10,000、マネージャー ¥5,000、女子プレイヤー ¥10,000。（審判は ¥5,000）',
+  '- 新歓費用は、新歓担当に渡します。新歓費用の予算は 50万円です。',
+  '- 前期が終わったら、前期決算をします。',
+  '- 集めた部費は、会計上「グランド使用料」に入れます。',
+  '- 審判へのお礼（審判代）は、「グランド代」として処理します。',
+  '- OB会からの支援金が、年に2回あります（4月ごろと10月ごろ）。',
+  '- 体育会の登録料と、補助金は、BYBにはありません。',
+  '- ボールは、主務が管理します。',
+  '',
+  '## 領収書・レシートの扱い',
+  '- レシートや領収書は、電子データで保存します。',
+  '- 紙の領収書は、1年間は保管します。',
+  '- オンライン購入は、購入したもの・金額・個数がわかるスクリーンショットを、マネージャーから送ってもらいます。',
+  '- 立替は、このアプリの「登録」から出してもらいます。',
+  '',
+  '## グランドの支払い方',
+  '## 保土ケ谷（県立保土ヶ谷公園）',
+  '- 窓口は、県立保土ヶ谷公園管理事務所です。',
+  '- 練習の前に払います。ほとんどが現金です。カードを持っていきます。',
+  '- 最寄りのバス停は「保土ヶ谷野球場」です。',
+  '- 料金は、2時間で ¥11,000です。',
+  '- 本人確認ができるもの（身分証）が必要です。',
+  '',
+  '## 富士通スタジアム川崎',
+  '- 利用の流れ、料金、支払い方法を、ここに書き足してください。',
+  '',
+  '## 六郷土手・鹿島田（いまは使っていません）',
+  '- 使うことになったときに、手順をここに書き足してください。',
+  '',
+  '## 渋谷区スポーツセンターグラウンド',
+  '- 支払いは、受付で現金です。',
+  '',
+  '## 駒沢（いまは使っていません）',
+  '- 支払いは、銀行振込です。',
+  '',
+  '## 銭湯',
+  '- 1人 ¥540です。人数を数えて払います。',
+  '- 券は10枚単位（¥5,400）でしか買えません。使った枚数分だけを、会計に出金として載せます。',
+  '- 買った人が、残りの券を持ちます。誰が何枚持っているかは、アプリの「銭湯券」で確認できます。',
+  '',
+  '## 立替の返済（このアプリの使い方）',
+  '- マネージャーが「登録」で、金額・勘定科目・摘要・レシートを送ります。',
+  '- 会計係は「精算」で、誰にいくら返すか確認します。渡したら「返済した」を押します。',
+  '- 押した時点で、「履歴」と「記録」に入ります。',
+  '- マネージャーが「受け取りました」を押すのは、遅れても大丈夫です。「履歴」に「受け取り確認まだ」と出ます。',
+  '- 「記録」の表をコピーして、年度の会計Excelに貼ります。',
+  '',
+  '## 毎月の決算報告',
+  '- 監督と、さわたりさんに、毎月、報告します。年度末にも報告します。',
+  '- 書き方の例：「6月支出予定」のように、月ごとの支出の見込みを並べます。（報告文の雛形を、ここに書き足してください）',
+  '',
+  '## 連絡先',
+  '- 佐伯監督：（メールアドレスを、ここに書き足してください）',
+  '- 澤渡さん：（メールアドレスを、ここに書き足してください）',
+  '',
+  '## 部費の集め方',
+  '- 集める時期は、「1年の流れ」を見てください。',
+  '- 部員への連絡文は、毎年、同じ文章を使い回します。（連絡文の雛形を、ここに書き足してください）',
+  '',
+  '## 上原マネーのルール',
+  '- （ルールを、ここに書き足してください）',
+  '',
+  '## 申請など',
+  '- 公認の申請と、体育会への所属の申請があります。時期と手順を、ここに書き足してください。',
+  '- 物品を購入するときは、幹部（主将）の許可をとります。',
+  '',
+  '## 去年との比較',
+  '- 「履歴」タブの下に、月ごとの支出を去年と比べるグラフがあります。',
+  '- 会計Excelの表（月・日・摘要・勘定科目・入金・出金）を貼り付けて取り込みます。年が替わったら、新しい年の表を取り込んでください。'
 ].join('\n');
 const BATH = '銭湯代', BATH_UNIT = 540;
 const INITIAL_MEMBERS = ['門脇', '川田', '伊達', '児玉', '申', '鈴木', '田中', '富田'];
@@ -570,15 +672,17 @@ function derive(){
     s.expenseIds.forEach(id => { const e = byId.get(id); if(e && !used.has(id) && items.indexOf(e) < 0) items.push(e); });
     if(!items.length) return;
     items.sort(byDate);
+    /* paid = the treasurer pressed 返済した. It counts in history and records at once; done = the manager has also confirmed. */
     const eff = {id: s.id, manager: s.manager, createdAt: s.createdAt, treasurerAt: s.treasurerAt, managerAt: s.managerAt,
-      items, total: sum(items), done: !!(s.treasurerAt && s.managerAt), doneAt: Math.max(s.treasurerAt, s.managerAt)};
+      items, total: sum(items), paid: !!s.treasurerAt, payAt: s.treasurerAt,
+      done: !!(s.treasurerAt && s.managerAt), doneAt: Math.max(s.treasurerAt, s.managerAt)};
     items.forEach(e => used.set(e.id, eff));
     effSets.push(eff);
   });
   const groups = new Map();
   const grp = name => {
     const k = keyOf(name); let g = groups.get(k);
-    if(!g){ g = {key: k, name: nk(name), unsettled: [], pending: [], done: []}; groups.set(k, g); }
+    if(!g){ g = {key: k, name: nk(name), unsettled: [], pending: [], await: [], done: []}; groups.set(k, g); }
     return g;
   };
   exps.forEach(e => { if(!used.has(e.id) && e.amount > 0) grp(e.manager).unsettled.push(e); });
@@ -590,13 +694,15 @@ function derive(){
     t.bought += e.bath.bought; t.used += e.bath.used; t.events.push(e);
   });
   tickets.forEach(t => { t.held = t.bought - t.used; t.value = t.held * BATH_UNIT; t.events.sort(byDate); });
-  effSets.forEach(s => { const g = grp(s.manager); (s.done ? g.done : g.pending).push(s); });
+  effSets.forEach(s => { const g = grp(s.manager); (s.done ? g.done : s.paid ? g.await : g.pending).push(s); });
   groups.forEach(g => {
     g.unsettled.sort(byDate);
     g.pending.sort((a, b) => a.createdAt - b.createdAt);
+    g.await.sort((a, b) => a.payAt - b.payAt);
     g.done.sort((a, b) => b.doneAt - a.doneAt);
     g.unsettledTotal = sum(g.unsettled);
     g.pendingTotal = g.pending.reduce((t, s) => t + s.total, 0);
+    g.awaitTotal = g.await.reduce((t, s) => t + s.total, 0);
     g.owed = g.unsettledTotal + g.pendingTotal;
   });
   return {exps, byId, effSets, used, groups, tickets};
@@ -606,6 +712,7 @@ function statusOf(e, d){
   const s = d.used.get(e.id);
   if(!s) return pill('warn', '未返済');
   if(s.done) return pill('ok', '完了 ' + md(dayOf(s.doneAt).replace(/\//g, '-')));
+  if(s.paid) return pill('wait', '返済済み・受け取り確認まだ');
   return pill('wait', '確認待ち');
 }
 
@@ -650,20 +757,36 @@ function itemRow(e, o){
 
 /* ---------- settlement blocks (shared by treasurer and manager views) ---------- */
 function pendingBlock(s, side){
-  const tp = s.treasurerAt ? pill('ok', '会計係 ✓ ' + stamp(s.treasurerAt)) : pill('idle', '会計係 未確認');
+  /* a claim: the manager pressed 受け取った before the treasurer recorded the payment */
+  const tp = pill('idle', '会計係 未確認');
   const mp = s.managerAt ? pill('ok', 'マネージャー ✓ ' + stamp(s.managerAt)) : pill('idle', 'マネージャー 未確認');
   let act = '';
   if(side === 't'){
-    if(!s.treasurerAt) act += ask('ct:' + s.id, '渡したことを記録', 'primary', yen(s.total) + ' を渡したことを記録しますか？', '記録する');
-    act += ask('cs:' + s.id, '取り消す', 'small ghost', 'この返済の記録を取り消しますか？立替は未返済に戻ります。', '取り消す');
+    act += ask('ct:' + s.id, '返済した', 'primary', yen(s.total) + ' を返済したことを記録しますか？履歴と記録に反映されます。', 'はい、返済した');
+    act += ask('cs:' + s.id, '取り消す', 'small ghost', 'この記録を取り消しますか？立替は未返済に戻ります。', '取り消す');
   }else{
-    if(!s.managerAt) act += ask('cm:' + s.id, '受け取りました', 'primary', '会計係から ' + yen(s.total) + ' を受け取りましたか？', '受け取りました');
-    else act += '<p class="hint">受け取りを記録しました。会計係の確認を待っています。</p>';
-    if(s.managerAt && !s.treasurerAt) act += ask('cs:' + s.id, '取り消す', 'small ghost', '受け取りの記録を取り消しますか？立替は未返済に戻ります。', '取り消す');
+    act += '<p class="hint">受け取りを記録しました。会計係の確認を待っています。</p>';
+    act += ask('cs:' + s.id, '取り消す', 'small ghost', '受け取りの記録を取り消しますか？立替は未返済に戻ります。', '取り消す');
   }
   const rows = s.items.map(e => itemRow(e, {editAcct: side === 't'})).join('');
-  return '<div class="set"><div class="set-head"><strong>返済の確認待ち ' + yen(s.total) + '（' + s.items.length + '件）</strong>' +
+  return '<div class="set"><div class="set-head"><strong>受け取りの申告 ' + yen(s.total) + '（' + s.items.length + '件）</strong>' +
     '<div class="pills">' + tp + mp + '</div></div>' +
+    '<details><summary>内訳を見る</summary><ul class="items">' + rows + '</ul></details>' +
+    '<div class="btn-row">' + act + '</div></div>';
+}
+/* a payment the treasurer has already made: counted in history and records, waiting for the manager's confirmation */
+function awaitBlock(s, side){
+  const rows = s.items.map(e => itemRow(e, {editAcct: side === 't'})).join('');
+  const pills = '<div class="pills">' + pill('ok', '返済 ' + stamp(s.treasurerAt)) + pill('wait', '受け取り確認まだ') + '</div>';
+  let head, act;
+  if(side === 't'){
+    head = '<strong>' + esc(s.manager) + '　' + yen(s.total) + '（' + s.items.length + '件）</strong>';
+    act = ask('cs:' + s.id, '取り消す', 'small ghost', 'この返済の記録を取り消しますか？立替は未返済に戻り、履歴と記録からも外れます。', '取り消す');
+  }else{
+    head = '<strong>会計係から ' + yen(s.total) + ' が返済されています（' + s.items.length + '件）</strong>';
+    act = ask('cm:' + s.id, '受け取りました', 'primary wide', '会計係から ' + yen(s.total) + ' を受け取りましたか？', 'はい、受け取りました');
+  }
+  return '<div class="set await"><div class="set-head">' + head + pills + '</div>' +
     '<details><summary>内訳を見る</summary><ul class="items">' + rows + '</ul></details>' +
     '<div class="btn-row">' + act + '</div></div>';
 }
@@ -676,10 +799,10 @@ function groupBody(g, side, d){
     const key = (side === 't' ? 'pay:' : 'recv:') + g.key;
     const label = side === 't' ? total + ' を返済した' : total + ' を受け取った';
     const text = side === 't'
-      ? g.name + ' さんに ' + total + ' を渡しましたか？記録すると、相手側にも確認ボタンが出ます。'
+      ? g.name + ' さんに ' + total + ' を返済しましたか？記録すると、履歴と記録にすぐ反映されます。受け取りの確認は、あとで相手が押します。'
       : '会計係から ' + total + ' を受け取りましたか？押すと会計係の画面に反映されます。';
     h += '<div class="block"><h4>未返済の立替 <span class="cnt">' + g.unsettled.length + '件</span></h4><ul class="items">' + rows + '</ul>' +
-      ask(key, label, 'primary wide', text, side === 't' ? 'はい、渡した' : 'はい、受け取った') + '</div>';
+      ask(key, label, 'primary wide', text, side === 't' ? 'はい、返済した' : 'はい、受け取った') + '</div>';
   }
   return h;
 }
@@ -688,9 +811,11 @@ function groupBody(g, side, d){
 function renderPayout(d){
   const gs = Array.from(d.groups.values()).filter(g => g.owed > 0).sort((a, b) => b.owed - a.owed);
   const total = gs.reduce((t, g) => t + g.owed, 0);
-  const waiting = gs.reduce((t, g) => t + g.pendingTotal, 0);
+  const aw = []; d.groups.forEach(g => g.await.forEach(s => aw.push(s)));
+  aw.sort((a, b) => a.payAt - b.payAt);
+  const awTotal = aw.reduce((t, s) => t + s.total, 0);
   let h = '<section class="card sum-card"><div><div class="lbl">返済が必要な合計</div><div class="big">' + yen(total) + '</div></div>' +
-    '<div class="sum-meta"><span>' + gs.length + '人</span>' + (waiting ? '<span>うち確認待ち ' + yen(waiting) + '</span>' : '') + '</div></section>';
+    '<div class="sum-meta"><span>' + gs.length + '人</span>' + (aw.length ? '<span>受け取り確認まだ ' + yen(awTotal) + '</span>' : '') + '</div></section>';
   if(!gs.length){
     h += '<div class="empty"><strong>返済が必要な立替はありません</strong>マネージャーが「登録」から金額とレシートを送ると、名前ごとの返済額がここに出ます。</div>';
   }else{
@@ -698,19 +823,31 @@ function renderPayout(d){
       h += '<article class="card"><header class="mgr-head"><h3>' + esc(g.name) + '</h3><div class="owed">' + yen(g.owed) + '</div></header>' + groupBody(g, 't', d) + '</article>';
     });
   }
+  if(aw.length){
+    h += '<section class="card stack"><h2>受け取り確認まだ <span class="cnt">' + aw.length + '件</span></h2>' +
+      '<p class="hint">返済した分は、履歴と記録にもう反映されています。相手が「自分の立替」で受け取りを押すと、確認済みになります（次に登録するときで大丈夫です）。</p>' +
+      aw.map(s => awaitBlock(s, 't')).join('') + '</section>';
+  }
   $('#payout-body').innerHTML = h;
 }
 function renderMine(d){
   const el = $('#mine-body'), k = keyOf(state.myName);
   if(!k){ el.innerHTML = '<div class="empty"><strong>名前を選んでください</strong>上の一覧から自分の名前を選ぶと、あなたの立替と返済の状況が表示されます。</div>'; return; }
   const g = d.groups.get(k);
-  if(!g){ el.innerHTML = '<div class="empty"><strong>返済待ちの立替はまだありません</strong>「登録」から金額とレシートを送ると、ここに出ます。</div>' + myTicketCard(d, k); return; }
-  let h = '<section class="card sum-card"><div><div class="lbl">返済待ちの合計</div><div class="big">' + yen(g.owed) + '</div></div></section>';
+  const flash = state.flash ? '<div class="okmsg" role="status">✓ ' + esc(state.flash) + '</div>' : '';
+  if(!g){ el.innerHTML = flash + '<div class="empty"><strong>返済待ちの立替はまだありません</strong>「登録」から金額とレシートを送ると、ここに出ます。</div>' + myTicketCard(d, k); return; }
+  let h = flash;
+  if(g.await.length){
+    h += '<section class="card stack"><h2>受け取りの確認をお願いします</h2>' +
+      '<p class="hint">会計係が返済を済ませています。お金を受け取ったら、ボタンを押してください。</p>' +
+      g.await.map(s => awaitBlock(s, 'm')).join('') + '</section>';
+  }
+  h += '<section class="card sum-card"><div><div class="lbl">返済待ちの合計</div><div class="big">' + yen(g.owed) + '</div></div></section>';
   if(g.owed > 0) h += '<section class="card">' + groupBody(g, 'm', d) + '</section>';
   else h += '<div class="empty"><strong>返済待ちの立替はありません</strong></div>';
   if(g.done.length){
-    h += '<section class="card stack"><h2>返済が完了したもの</h2>' + g.done.slice(0, 8).map(s =>
-      '<details><summary>' + esc(dayOf(s.doneAt)) + '　' + yen(s.total) + '（' + s.items.length + '件）</summary><ul class="items">' +
+    h += '<section class="card stack"><h2>受け取りの確認が済んだもの</h2>' + g.done.slice(0, 8).map(s =>
+      '<details><summary>✓ ' + esc(dayOf(s.doneAt)) + '　' + yen(s.total) + '（' + s.items.length + '件）</summary><ul class="items">' +
       s.items.map(e => itemRow(e, {})).join('') + '</ul></details>').join('') + '</section>';
   }
   el.innerHTML = h + myTicketCard(d, k);
@@ -772,19 +909,20 @@ function pieSvg(slices, total){
   return '<svg class="pie" viewBox="0 0 220 220" role="img" aria-label="勘定科目ごとの金額の円グラフ。内訳は下の一覧にあります。">' + out + '</svg>';
 }
 function renderHistory(d){
-  const done = d.effSets.filter(s => s.done).sort((a, b) => b.doneAt - a.doneAt);
-  const yearOf = s => String(new Date(s.doneAt).getFullYear());
+  const done = d.effSets.filter(s => s.paid).sort((a, b) => b.payAt - a.payAt);
+  const yearOf = s => String(new Date(s.payAt).getFullYear());
   const years = Array.from(new Set(done.map(yearOf))).sort().reverse();
   const cur = String(new Date().getFullYear());
   let sel = state.histYear;
   if(sel !== 'all' && years.indexOf(sel) < 0) sel = years.indexOf(cur) >= 0 ? cur : (years[0] || cur);
   const shown = sel === 'all' ? done : done.filter(s => yearOf(s) === sel);
   const total = shown.reduce((t, s) => t + s.total, 0);
+  const unconf = shown.filter(s => !s.done).length;
 
   const yopts = '<option value="all"' + (sel === 'all' ? ' selected' : '') + '>すべて</option>' +
     (years.length ? years : [cur]).map(y => '<option value="' + esc(y) + '"' + (y === sel ? ' selected' : '') + '>' + esc(y) + '年</option>').join('');
   let h = '<section class="card sum-card"><div><div class="lbl">' + (sel === 'all' ? 'これまでに返済した合計' : esc(sel) + '年に返済した合計') + '</div>' +
-    '<div class="big">' + yen(total) + '</div><div class="hint">' + shown.length + '回の返済</div></div>' +
+    '<div class="big">' + yen(total) + '</div><div class="hint">' + shown.length + '回の返済' + (unconf ? '（受け取り確認まだ ' + unconf + '件）' : '') + '</div></div>' +
     '<div class="field"><label for="h-year">表示する年</label><select id="h-year" class="h-year">' + yopts + '</select></div></section>';
 
   const extras = d.exps.filter(e => e.amount === 0 && e.led > 0 && (sel === 'all' || e.date.slice(0, 4) === sel));
@@ -792,7 +930,7 @@ function renderHistory(d){
   const hasBath = extras.length > 0 || shown.some(s => s.items.some(e => e.bath));
   h += '<section class="card stack"><h2>勘定科目ごとの金額</h2>';
   if(!ledTotal){
-    h += '<p class="hint">この期間に返済が完了した立替はまだありません。会計係と受け取った人の両方が確認ボタンを押すと、ここに集計されます。</p>';
+    h += '<p class="hint">この期間に返済した立替はまだありません。会計係が「返済した」を押すと、ここに集計されます。</p>';
   }else{
     const byAcct = new Map();
     shown.forEach(s => s.items.forEach(e => byAcct.set(e.account, (byAcct.get(e.account) || 0) + e.led)));
@@ -816,7 +954,9 @@ function renderHistory(d){
 
   shown.forEach(s => {
     h += '<article class="card hist"><div class="hist-head"><strong>' + esc(s.manager) + '</strong><span class="amt">' + yen(s.total) + '</span></div>' +
-      '<div class="pills">' + pill('ok', '返済完了 ' + dayOf(s.doneAt)) + pill('idle', '会計係 ' + stamp(s.treasurerAt)) + pill('idle', 'マネージャー ' + stamp(s.managerAt)) + '</div>' +
+      '<div class="pills">' + (s.done
+        ? pill('ok', '返済完了 ' + dayOf(s.payAt)) + pill('idle', '返済 ' + stamp(s.treasurerAt)) + pill('ok', '受け取り確認 ' + stamp(s.managerAt))
+        : pill('wait', '受け取り確認まだ') + pill('idle', '返済 ' + stamp(s.treasurerAt))) + '</div>' +
       '<details><summary>内訳 ' + s.items.length + '件</summary><ul class="items">' + s.items.map(e => itemRow(e, {})).join('') + '</ul></details></article>';
   });
   $('#history-body').innerHTML = h;
@@ -849,7 +989,7 @@ function renderLedger(d){
   const st = $('#l-status').value;
   const rows = d.exps.filter(e => {
     if(sel !== 'all' && e.date.slice(0, 4) !== sel) return false;
-    const s = d.used.get(e.id), done = e.amount === 0 || !!(s && s.done);
+    const s = d.used.get(e.id), done = e.amount === 0 || !!(s && s.paid);
     if(st === 'done' && !done) return false;
     if(st === 'open' && done) return false;
     return true;
@@ -897,7 +1037,7 @@ async function copyLedger(){
 function renderStatus(){
   const el = $('#status'); let msg = '';
   if(state.dbMissing) msg = 'データベースに接続できていません。ページを開き直してください。';
-  else if(state.error) msg = 'データを読み込めませんでした。ページを開き直してください。';
+  else if(state.error) msg = 'データを読み込めませんでした。ページを開き直してください。' + (state.errCode ? '（' + state.errCode + '）' : '');
   else if(state.slow && !(state.loaded.exp && state.loaded.set)) msg = 'データを取得できていません。通信状況を確認してください。';
   el.hidden = !msg; el.textContent = msg;
 }
@@ -970,32 +1110,42 @@ function fmtDoc(text){
   close();
   return h;
 }
-function renderRules(){
-  const el = $('#rules-body');
+const DOCS = {
+  rules:  {path: 'pages/rules',  el: '#rules-body',  doc: 'rulesDoc',  edit: 'rulesEdit',  title: 'ルール',   max: 8000,  def: () => DEFAULT_RULES,  ownerOnly: false},
+  manual: {path: 'pages/manual', el: '#manual-body', doc: 'manualDoc', edit: 'manualEdit', title: 'マニュアル', max: 20000, def: () => DEFAULT_MANUAL, ownerOnly: true}
+};
+function renderDoc(name){
+  const c = DOCS[name], el = $(c.el);
   if(!el) return;
-  const doc = state.rulesDoc, body = doc && typeof doc.body === 'string' && doc.body.trim() ? doc.body : DEFAULT_RULES;
-  if(state.rulesEdit && state.isOwner){
-    if($('#rules-ta')) return;
-    el.innerHTML = '<section class="card stack"><h2>ルールを編集</h2>' +
-      '<p class="hint">見出しは「## 」、箇条書きは「- 」、右寄せの小さな文字は「> 」で始めます。毎年、年度の数字などを更新してください。</p>' +
-      '<textarea id="rules-ta" maxlength="8000" spellcheck="false"></textarea>' +
-      '<div class="btn-row"><button type="button" class="btn primary" data-act="rules-save">保存する</button>' +
-      '<button type="button" class="btn" data-act="rules-cancel">やめる</button>' +
-      '<button type="button" class="btn ghost" data-act="rules-reset">最初の文章に戻す</button></div></section>';
-    $('#rules-ta').value = body;
+  if(c.ownerOnly && !state.isOwner){ el.innerHTML = ''; return; }
+  const doc = state[c.doc], body = doc && typeof doc.body === 'string' && doc.body.trim() ? doc.body : c.def();
+  const back = name === 'rules' ? '<button type="button" class="btn small ghost" data-act="back">← もどる</button>' : '';
+  const lead = c.ownerOnly ? '<p class="hint">このページは、会計係だけが見られます。</p>' : '';
+  if(state[c.edit] && state.isOwner){
+    if($('#ta-' + name)) return;
+    el.innerHTML = back + '<section class="card stack"><h2>' + c.title + 'を編集</h2>' +
+      '<p class="hint">見出しは「## 」、箇条書きは「- 」、右寄せの小さな文字は「> 」で始めます。代が替わるときに、数字や連絡先を更新してください。' +
+      (c.ownerOnly ? '暗証番号やパスワードは、書かないでください。' : '') + '</p>' +
+      '<textarea id="ta-' + name + '" maxlength="' + c.max + '" spellcheck="false"></textarea>' +
+      '<div class="btn-row"><button type="button" class="btn primary" data-act="doc-save" data-id="' + name + '">保存する</button>' +
+      '<button type="button" class="btn" data-act="doc-cancel" data-id="' + name + '">やめる</button>' +
+      '<button type="button" class="btn ghost" data-act="doc-reset" data-id="' + name + '">最初の文章に戻す</button></div></section>';
+    $('#ta-' + name).value = body;
     return;
   }
   const meta = doc && doc.updatedAt ? '<p class="doc-meta">最終更新 ' + esc(dayOf(Number(doc.updatedAt))) + '</p>' : '';
-  el.innerHTML = '<section class="card doc">' + fmtDoc(body) + meta + '</section>' +
-    (state.isOwner ? '<button type="button" class="btn wide" data-act="rules-edit">このページを編集する（会計係のみ）</button>' : '');
+  el.innerHTML = back + lead + '<section class="card doc">' + fmtDoc(body) + meta + '</section>' +
+    (state.isOwner ? '<button type="button" class="btn wide" data-act="doc-edit" data-id="' + name + '">このページを編集する（会計係のみ）</button>' : '');
 }
-async function saveRules(){
-  const ta = $('#rules-ta'); if(!ta || !state.db) return;
+function renderRules(){ renderDoc('rules'); renderDoc('manual'); }
+async function saveDoc(name){
+  const c = DOCS[name], ta = $('#ta-' + name); if(!ta || !state.db) return;
   const body = ta.value.replace(/\r\n?/g, '\n').trim();
   if(!body){ toast('文章が空です', true); return; }
+  if(body.length > c.max){ toast('文章が長すぎます（' + c.max + '文字まで）', true); return; }
   try{
-    await state.db.doc('pages/rules').set({body, updatedAt: Date.now(), updatedBy: lower(state.user.email)});
-    state.rulesEdit = false; renderRules(); toast('保存しました');
+    await state.db.doc(c.path).set({body, updatedAt: Date.now(), updatedBy: lower(state.user.email)});
+    state[c.edit] = false; renderDoc(name); toast('保存しました');
   }catch(e){ toast(errMsg(e), true); }
 }
 function notifyLine(text){
@@ -1014,7 +1164,192 @@ async function saveNotify(){
     toast(v ? '通知用のURLを保存しました' : '通知を止めました');
   }catch(e){ toast(errMsg(e), true); }
 }
+
+/* ---------- year-over-year comparison (treasurer only). Data is pasted from the accounting Excel; only monthly totals per 勘定科目 are stored. ---------- */
+const TRANSFER = ['現金', '預金'], INCOME_ACCTS = ['OB支援金', '部員部費'], POOL = '預り金';
+const nfk = x => String(x == null ? '' : x).normalize('NFKC').replace(/\s+/g, '').trim();
+const numOf = x => { const t = String(x == null ? '' : x).normalize('NFKC').replace(/[,¥￥\s]/g, ''); return /^-?\d+(\.\d+)?$/.test(t) ? Math.round(Number(t)) : 0; };
+function parseLedgerText(text, defYear, defKind){
+  const slots = {}; let year = defYear, kind = defKind, cur = null, n = 0;
+  const slotOf = () => { const k = year + '-' + kind; return slots[k] || (slots[k] = {carry: 0, rows: new Map()}); };
+  String(text || '').split(/\r?\n/).forEach(line => {
+    if(!line.trim()) return;
+    if(/^\s*#/.test(line)){
+      const y = line.match(/(20\d\d)/), k = line.match(/(現金|預金)/);
+      if(y) year = Number(y[1]);
+      if(k) kind = k[1] === '現金' ? 'cash' : 'bank';
+      cur = null; return;
+    }
+    const c = line.split('\t');
+    if(c.length < 6 || !year || !kind) return;
+    if(nfk(c[2]).indexOf('繰越') >= 0){ slotOf().carry = numOf(c[6]); return; }
+    const mo = parseInt(nfk(c[0]), 10);
+    if(Number.isFinite(mo) && mo >= 1 && mo <= 12) cur = mo;
+    const acct = nfk(c[3]), inc = numOf(c[4]), exp = numOf(c[5]);
+    if(!acct || cur == null || (!inc && !exp)) return;
+    const key = cur + '|' + acct, row = slotOf().rows.get(key) || [0, 0];
+    row[0] += inc; row[1] += exp; slotOf().rows.set(key, row); n++;
+  });
+  return {slots, n};
+}
+function slotsToObj(slots){
+  const o = {};
+  Object.keys(slots).forEach(k => {
+    o[k] = {carry: slots[k].carry, rows: Array.from(slots[k].rows, ([key, v]) => { const i = key.indexOf('|'); return [Number(key.slice(0, i)), key.slice(i + 1), v[0], v[1]]; })
+      .sort((a, b) => (a[0] - b[0]) || (a[1] < b[1] ? -1 : 1))};
+  });
+  return o;
+}
+function cmpYears(doc){
+  const ys = new Set(); Object.keys((doc && doc.slots) || {}).forEach(k => ys.add(Number(k.split('-')[0])));
+  return Array.from(ys).filter(Number.isFinite).sort((a, b) => a - b);
+}
+/* one year: monthly net spending per account, income, and the money on hand */
+function cmpCalc(doc, y, withPool){
+  const perAcct = new Map(), income = Array(12).fill(0);
+  let carry = 0, inAll = 0, outAll = 0, last = 0, has = false;
+  ['cash', 'bank'].forEach(kind => {
+    const sl = doc.slots[y + '-' + kind]; if(!sl) return;
+    has = true; carry += Number(sl.carry) || 0;
+    sl.rows.forEach(r => {
+      const m = r[0], a = r[1], i = r[2], e = r[3];
+      if(!(m >= 1 && m <= 12)) return;
+      inAll += i; outAll += e; if(m > last) last = m;
+      if(TRANSFER.indexOf(a) >= 0) return;
+      if(INCOME_ACCTS.indexOf(a) >= 0){ income[m - 1] += i - e; return; }
+      if(a === POOL && !withPool) return;
+      const arr = perAcct.get(a) || Array(12).fill(0); arr[m - 1] += e - i; perAcct.set(a, arr);
+    });
+  });
+  const spend = Array(12).fill(0);
+  perAcct.forEach(arr => arr.forEach((v, i) => { spend[i] += v; }));
+  return {has, perAcct, spend, income, balance: carry + inAll - outAll, last, incTotal: income.reduce((t, v) => t + v, 0), spTotal: spend.reduce((t, v) => t + v, 0)};
+}
+const yenS = n => (n < 0 ? '−' : '') + yen(Math.abs(n));
+const yenD = n => n === 0 ? '±¥0' : (n > 0 ? '+' : '−') + yen(Math.abs(n));
+const fmtMan = n => n >= 10000 ? (Math.round(n / 1000) / 10) + '万' : String(n);
+function niceMax(v){
+  if(v <= 0) return 1000;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+function cmpChart(prev, cur, labels){
+  const W = 360, H = 210, L = 38, R = 6, T = 10, B = 22, pw = W - L - R, ph = H - T - B;
+  const mx = niceMax(Math.max.apply(null, prev.concat(cur, [0])));
+  const y = v => T + ph - (Math.max(0, v) / mx) * ph;
+  let out = '';
+  for(let i = 0; i <= 4; i++){
+    const v = mx * i / 4, yy = y(v);
+    out += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="var(--line)" stroke-width="1"/>' +
+           '<text x="' + (L - 4) + '" y="' + (yy + 3).toFixed(1) + '" text-anchor="end">' + fmtMan(Math.round(v)) + '</text>';
+  }
+  const gw = pw / 12, bw = Math.min(11, gw * 0.36);
+  for(let m = 0; m < 12; m++){
+    const cx = L + gw * m + gw / 2;
+    const bar = (v, x, color, name) => {
+      const h = Math.max(0, v) / mx * ph;
+      if(!(v > 0)) return '';
+      const r = Math.min(3, bw / 2, h);
+      return '<path d="M' + x.toFixed(1) + ' ' + (T + ph).toFixed(1) + 'V' + (T + ph - h + r).toFixed(1) + 'a' + r + ' ' + r + ' 0 0 1 ' + r + ' -' + r + 'h' + (bw - 2 * r).toFixed(1) + 'a' + r + ' ' + r + ' 0 0 1 ' + r + ' ' + r + 'V' + (T + ph).toFixed(1) + 'Z" style="fill:' + color + '"><title>' + esc(labels[m] + '　' + name + '　' + yen(v)) + '</title></path>';
+    };
+    out += bar(prev[m], cx - bw - 1, 'var(--sx)', labels.prevName) + bar(cur[m], cx + 1, 'var(--s1)', labels.curName);
+    out += '<text x="' + cx.toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + (m + 1) + '</text>';
+  }
+  out += '<text x="' + L + '" y="' + (H - 6) + '" text-anchor="end" style="font-size:9px">月</text>';
+  return '<svg class="cmp-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="月ごとの支出の棒グラフ。去年と今年を並べています。数字は下の表にあります。">' + out + '</svg>';
+}
+function renderCompare(){
+  const el = $('#compare-body');
+  if(!el) return;
+  if(!state.isOwner){ el.innerHTML = ''; return; }
+  if($('#cmp-ta') && document.activeElement === $('#cmp-ta')) return;
+  const keepTa = $('#cmp-ta') ? $('#cmp-ta').value : '', wasOpen = $('#cmp-box') ? $('#cmp-box').open : false;
+  const doc = state.compareDoc && state.compareDoc.slots ? state.compareDoc : {slots: {}};
+  const years = cmpYears(doc);
+  const slotNames = Object.keys(doc.slots).sort().map(k => { const p = k.split('-'); return p[0] + '年' + (p[1] === 'cash' ? '現金' : '預金'); });
+  const thisY = new Date().getFullYear();
+  const importBox = '<details id="cmp-box" class="addbox"' + ((wasOpen || !years.length) ? ' open' : '') + '><summary><span class="lnk">Excelの表を取り込む・更新する</span></summary>' +
+    '<div class="stack" style="margin-top:10px"><p class="hint">会計Excelの「現金出納帳」か「預金出納帳」の表（月・日・摘要・勘定科目・入金・出金・残高の列）を、コピーして貼り付けます。摘要の文章は保存されず、月ごとの勘定科目の合計だけが残ります。' +
+    '貼り付けた文章の先頭に「# 2025 現金」のような行があれば、年と台帳を自動で読み取ります。同じ年・同じ台帳に貼ると、上書きされます。</p>' +
+    '<div class="ctrls"><div class="field"><label for="cmp-y">年</label><input id="cmp-y" type="number" inputmode="numeric" min="2000" max="2100" value="' + esc(String(state.cmpYear || thisY)) + '"></div>' +
+    '<div class="field"><label for="cmp-k">台帳</label><select id="cmp-k"><option value="cash">現金出納帳</option><option value="bank">預金出納帳</option></select></div></div>' +
+    '<textarea id="cmp-ta" class="cmp-ta" spellcheck="false" placeholder="ここに貼り付け"></textarea>' +
+    '<div class="btn-row"><button type="button" class="btn primary" data-act="cmp-import">取り込む</button></div>' +
+    (slotNames.length ? '<p class="hint">取り込み済み：' + esc(slotNames.join('、')) + '</p>' : '') + '</div></details>';
+  let h = '<section class="card stack"><h2>月ごとの支出（去年との比較）</h2>';
+  if(!years.length){
+    h += '<p class="hint">まだデータがありません。下の「Excelの表を取り込む」から、会計Excelの表を貼り付けてください。去年と今年の2年分があると、比べられます。</p>' + importBox + '</section>';
+    el.innerHTML = h;
+    if($('#cmp-ta')) $('#cmp-ta').value = keepTa;
+    return;
+  }
+  let by = Number(state.cmpYear);
+  if(years.indexOf(by) < 0) by = years[years.length - 1];
+  const py = years.indexOf(by - 1) >= 0 ? by - 1 : null;
+  const C = cmpCalc(doc, by, false), Pv = py ? cmpCalc(doc, py, false) : null;
+  const accts = new Set(); C.perAcct.forEach((_, a) => accts.add(a)); if(Pv) Pv.perAcct.forEach((_, a) => accts.add(a));
+  const tot = a => (C.perAcct.get(a) || []).reduce((t, v) => t + v, 0) + (Pv && Pv.perAcct.get(a) ? Pv.perAcct.get(a).reduce((t, v) => t + v, 0) : 0);
+  const acctList = Array.from(accts).sort((a, b) => (tot(b) - tot(a)) || (a < b ? -1 : 1));
+  let sel = state.cmpAcct; if(sel !== 'all' && !accts.has(sel)) sel = 'all';
+  const pick = X => X ? (sel === 'all' ? X.spend : (X.perAcct.get(sel) || Array(12).fill(0))) : Array(12).fill(0);
+  const cs = pick(C), ps = pick(Pv);
+  const last = C.last || 12;
+  const yopts = years.slice().reverse().map(y => '<option value="' + y + '"' + (y === by ? ' selected' : '') + '>' + y + '年</option>').join('');
+  const aopts = '<option value="all">すべて</option>' + acctList.map(a => '<option value="' + esc(a) + '"' + (a === sel ? ' selected' : '') + '>' + esc(a) + '</option>').join('');
+  h += '<div class="ctrls"><div class="field"><label for="cmp-by">見る年</label><select id="cmp-by" class="cmp-year">' + yopts + '</select></div>' +
+    '<div class="field"><label for="cmp-acct">勘定科目</label><select id="cmp-acct" class="cmp-acct">' + aopts + '</select></div></div>' +
+    '<p class="hint">預り金（合宿費の集金と支払い）は、差し引きがゼロに近いので、支出に入れていません。</p>';
+  if(!py) h += '<p class="hint">' + (by - 1) + '年のデータがないので、' + by + '年だけを表示しています。</p>';
+  const labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']; labels.prevName = (by - 1) + '年'; labels.curName = by + '年';
+  h += cmpChart(ps, cs, labels);
+  h += '<div class="cmp-legend">' + (py ? '<span><span class="sw" style="background:var(--sx)"></span>' + (by - 1) + '年（去年）</span>' : '') +
+    '<span><span class="sw" style="background:var(--s1)"></span>' + by + '年</span><span class="hint">' + esc(sel === 'all' ? '全科目の支出' : sel) + '（単位：円。縦軸は万円）</span></div>';
+  // summary: income, spending, money on hand, rough year-end
+  const rem = Pv ? Pv.spend.reduce((t, v, i) => t + (i + 1 > last ? v : 0), 0) : null;
+  const rows = [['収入（部費・OB支援金）', Pv ? yenS(Pv.incTotal) : '－', yenS(C.incTotal)], ['支出', Pv ? yenS(Pv.spTotal) : '－', yenS(C.spTotal)]];
+  h += '<div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>' + by + '年の状況</th><th class="num">' + (py ? py + '年' : '') + '</th><th class="num">' + by + '年</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td>' + r[0] + '</td><td class="num">' + r[1] + '</td><td class="num">' + r[2] + '</td></tr>').join('') +
+    '<tr class="total"><td>残高（現金＋預金）</td><td class="num">' + (Pv ? yenS(Pv.balance) : '－') + '</td><td class="num">' + yenS(C.balance) + '</td></tr></tbody></table></div>';
+  if(rem != null){
+    h += '<div class="notice warn"><strong>年末の残高の目安：' + yenS(C.balance - rem) + '</strong><br>いまの残高から、去年の' + (last + 1 > 12 ? '（12月まで）' : (last + 1) + '月以降') + 'の支出 ' + yenS(rem) + ' を引いた金額です。' +
+      '収入は入れていません。去年と同じだけ使う前提の、おおまかな目安です。合宿など大きな支出の時期が変わると、ずれます。</div>';
+  }
+  // per-account table (same period)
+  const lim = (X, a) => (X && X.perAcct.get(a) ? X.perAcct.get(a).reduce((t, v, i) => t + (i + 1 <= last ? v : 0), 0) : 0);
+  const aRows = acctList.map(a => ({a, p: lim(Pv, a), c: lim(C, a)})).filter(r => r.p || r.c);
+  if(aRows.length){
+    h += '<details><summary>勘定科目ごとの金額' + (py ? '（' + (by - 1) + '年の' + last + '月までと比較）' : '') + '</summary><div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>科目</th>' + (py ? '<th class="num">' + py + '年</th>' : '') + '<th class="num">' + by + '年</th>' + (py ? '<th class="num">差</th>' : '') + '</tr></thead><tbody>' +
+      aRows.map(r => '<tr><td>' + esc(r.a) + '</td>' + (py ? '<td class="num">' + yenS(r.p) + '</td>' : '') + '<td class="num">' + yenS(r.c) + '</td>' + (py ? '<td class="num">' + yenD(r.c - r.p) + '</td>' : '') + '</tr>').join('') +
+      '</tbody></table></div></details>';
+  }
+  h += '<details><summary>月ごとの金額</summary><div class="tbl-wrap"><table class="cmp-tbl"><thead><tr><th>月</th>' + (py ? '<th class="num">' + py + '年</th>' : '') + '<th class="num">' + by + '年</th>' + (py ? '<th class="num">差</th>' : '') + '</tr></thead><tbody>' +
+    labels.map((lb, i) => '<tr><td>' + lb + '</td>' + (py ? '<td class="num">' + yenS(ps[i]) + '</td>' : '') + '<td class="num">' + yenS(cs[i]) + '</td>' + (py ? '<td class="num">' + yenD(cs[i] - ps[i]) + '</td>' : '') + '</tr>').join('') +
+    '</tbody></table></div></details>';
+  const upd = state.compareMeta && state.compareMeta.updatedAt ? '<p class="doc-meta">最終更新 ' + esc(dayOf(Number(state.compareMeta.updatedAt))) + '</p>' : '';
+  el.innerHTML = h + importBox + upd + '</section>';
+  if($('#cmp-ta')) $('#cmp-ta').value = keepTa;
+}
+async function importCompare(){
+  const ta = $('#cmp-ta'); if(!ta || !state.db) return;
+  const y = Number($('#cmp-y').value), kind = $('#cmp-k').value;
+  const res = parseLedgerText(ta.value, Number.isFinite(y) && y >= 2000 && y <= 2100 ? y : 0, kind);
+  const keys = Object.keys(res.slots).filter(k => res.slots[k].rows.size);
+  if(!res.n || !keys.length){ toast('表を読み取れませんでした。Excelの「月・日・摘要・勘定科目・入金・出金」の列を、そのまま貼り付けてください', true); return; }
+  const base = state.compareDoc && state.compareDoc.slots ? state.compareDoc : {v: 1, slots: {}};
+  const merged = {v: 1, slots: Object.assign({}, base.slots)};
+  const add = slotsToObj(res.slots);
+  keys.forEach(k => { merged.slots[k] = add[k]; });
+  const body = JSON.stringify(merged);
+  if(body.length > 30000){ toast('データが大きすぎます', true); return; }
+  try{
+    await state.db.doc('pages/compare').set({body, updatedAt: Date.now(), updatedBy: lower(state.user.email)});
+  }catch(e){ toast(errMsg(e), true); return; }
+  ta.value = ''; state.cmpYear = String(Math.max.apply(null, cmpYears(merged)));
+  toast(keys.map(k => k.replace('-cash', '年 現金').replace('-bank', '年 預金')).join('、') + ' を取り込みました（' + res.n + '行）');
+}
+
 function renderViews(){
+  syncManualSub();
   const d = derive(); state.d = d;
   renderNameSelects();
   updateBathUI();
@@ -1025,13 +1360,14 @@ function renderViews(){
   renderPayout(d);
   renderTickets(d);
   renderHistory(d);
+  renderCompare();
   renderLedger(d);
   renderTabs();
 }
 function applyHash(){
   const list = tabList(); let h = '';
   try{ h = location.hash.replace(/^#/, ''); }catch(e){}
-  state.tab = list.indexOf(h) >= 0 ? h : list[0];
+  state.tab = (list.indexOf(h) >= 0 || EXTRA_PAGES.indexOf(h) >= 0) ? h : list[0];
   renderTabs();
 }
 
@@ -1044,7 +1380,7 @@ async function createSettlement(key, side){
     manager: g.name, expenseIds: g.unsettled.map(e => e.id), total: g.unsettledTotal, count: g.unsettled.length,
     treasurerAt: side === 't' ? now : null, managerAt: side === 'm' ? now : null, createdAt: now
   });
-  toast(side === 't' ? '返済を記録しました。相手の確認を待っています' : '受け取りを記録しました。会計係の確認を待っています');
+  toast(side === 't' ? '返済を記録しました。履歴と記録に反映されました' : '受け取りを記録しました。会計係の確認を待っています');
 }
 async function confirmSettlement(id, side){
   const patch = side === 't' ? {treasurerAt: Date.now()} : {managerAt: Date.now()};
@@ -1054,8 +1390,13 @@ async function confirmSettlement(id, side){
     if(e && (e.code === 'invalid_argument' || e.code === 'not-found')){ toast('この返済はすでに取り消されています', true); return; }
     throw e;
   }
-  toast('確認しました');
+  if(side === 'm'){
+    state.flash = '受け取りを確認しました。ありがとうございます';
+    clearTimeout(flashTimer); flashTimer = setTimeout(() => { state.flash = ''; if(state.d) renderViews(); }, 15000);
+    toast('受け取りを確認しました ✓');
+  }else toast('返済を記録しました');
 }
+let flashTimer;
 async function cancelSettlement(id){
   await state.db.doc('settlements/' + id).delete();
   toast('取り消しました');
@@ -1290,6 +1631,14 @@ document.addEventListener('click', ev => {
   if(act === 'tab'){
     state.tab = id; renderTabs();
     try{ location.hash = id; }catch(e){}
+  }else if(act === 'rules-open'){
+    if(state.tab !== 'rules') state.prevTab = state.tab;
+    state.tab = 'rules'; renderTabs(); window.scrollTo(0, 0);
+    try{ location.hash = 'rules'; }catch(e){}
+  }else if(act === 'back'){
+    const list = tabList();
+    state.tab = list.indexOf(state.prevTab) >= 0 ? state.prevTab : list[0]; renderTabs();
+    try{ location.hash = state.tab; }catch(e){}
   }else if(act === 'receipt') openReceipt(id);
   else if(act === 'ask'){ setConfirm(key); renderViews(); }
   else if(act === 'cancel'){ setConfirm(null); renderViews(); }
@@ -1304,10 +1653,11 @@ document.addEventListener('click', ev => {
     if(inp) addMember(inp.value, b.dataset.self === '1').then(ok => { if(ok){ inp.value = ''; const dt = b.closest('details'); if(dt) dt.open = false; } });
   }
   else if(act === 'addtre') addTreasurer();
-  else if(act === 'rules-edit'){ state.rulesEdit = true; renderRules(); }
-  else if(act === 'rules-cancel'){ state.rulesEdit = false; renderRules(); }
-  else if(act === 'rules-reset'){ const ta = $('#rules-ta'); if(ta) ta.value = DEFAULT_RULES; }
-  else if(act === 'rules-save') saveRules();
+  else if(DOCS[id] && act === 'doc-edit'){ state[DOCS[id].edit] = true; renderDoc(id); }
+  else if(DOCS[id] && act === 'doc-cancel'){ state[DOCS[id].edit] = false; renderDoc(id); }
+  else if(DOCS[id] && act === 'doc-reset'){ const ta = $('#ta-' + id); if(ta) ta.value = DOCS[id].def(); }
+  else if(DOCS[id] && act === 'doc-save') saveDoc(id);
+  else if(act === 'cmp-import') importCompare();
   else if(act === 'savenotify') saveNotify();
   else if(act === 'testnotify'){ if(!state.notifyUrl) toast('先に、通知用のURLを保存してください', true); else { notifyLine('【BYB立替】テスト通知です。この文章が届いていれば、設定は完了です。'); toast('テストを送りました。LINEを確認してください'); } }
   else if(act === 'copylink') copyLink();
@@ -1348,6 +1698,10 @@ document.addEventListener('change', ev => {
   if(ns){ setName(ns.value); renderViews(); return; }
   const s = ev.target.closest && ev.target.closest('.acct-sel');
   if(s) changeAccount(s.dataset.id, s.value);
+  const cy = ev.target.closest && ev.target.closest('.cmp-year');
+  if(cy){ state.cmpYear = cy.value; renderCompare(); return; }
+  const ca = ev.target.closest && ev.target.closest('.cmp-acct');
+  if(ca){ state.cmpAcct = ca.value; renderCompare(); return; }
   const y = ev.target.closest && ev.target.closest('.h-year');
   if(y){ state.histYear = y.value; if(state.d) renderHistory(state.d); }
 });
@@ -1365,24 +1719,71 @@ $('#f-bought').addEventListener('change', () => {
 });
 
 /* ---------- boot ---------- */
+let subs = [], subGen = 0, manualGen = -1, failedGen = -1, retryN = 0, retryT = 0, slowT = 0;
+function stopSubs(){ subs.forEach(f => { try{ if(typeof f === 'function') f(); }catch(e){} }); subs = []; }
 function subscribe(db){
-  const timer = setTimeout(() => { state.slow = true; renderStatus(); }, 10000);
-  const done = () => { if(state.loaded.exp && state.loaded.set){ clearTimeout(timer); state.slow = false; renderStatus(); } };
-  const onErr = e => { console.error(e); state.error = true; renderStatus(); };
-  db.collection('expenses').onSnapshot(snap => {
+  /* (Re)start every listener. Called on open, after sign-in changes, and on retry: a listener that ended
+     with an error (for example while signed out for a moment) never comes back by itself. */
+  stopSubs(); clearTimeout(retryT); clearTimeout(slowT);
+  const gen = ++subGen;
+  slowT = setTimeout(() => { state.slow = true; renderStatus(); }, 10000);
+  const done = () => { if(state.loaded.exp && state.loaded.set){ clearTimeout(slowT); state.slow = false; } renderStatus(); };
+  const ok = () => { retryN = 0; if(state.error || state.errCode){ state.error = false; state.errCode = ''; renderStatus(); } };
+  const onErr = e => {
+    if(gen !== subGen) return;
+    console.error(e);
+    if(failedGen === gen) return;           /* count one round of failures once, not once per listener */
+    failedGen = gen; retryN++;
+    state.errCode = (e && e.code) || '';
+    if(retryN >= 3){ state.error = true; renderStatus(); }
+    if(retryN <= 6) retryT = setTimeout(() => { if(gen === subGen && state.db) subscribe(state.db); }, Math.min(1500 * retryN, 8000));
+  };
+  subs.push(db.collection('expenses').onSnapshot(snap => {
     state.expenses = snap.docs.map(x => ({id: x.id, data: x.data()}));
-    state.loaded.exp = true; done(); renderViews();
-  }, onErr);
-  db.doc('pages/rules').onSnapshot(sn => { state.rulesDoc = sn.exists ? sn.data() : null; renderRules(); }, e => console.error(e));
-  db.collection('members').onSnapshot(snap => {
+    state.loaded.exp = true; ok(); done(); renderViews();
+  }, onErr));
+  subs.push(db.doc('pages/rules').onSnapshot(sn => { state.rulesDoc = sn.exists ? sn.data() : null; renderRules(); }, e => console.error(e)));
+  subs.push(db.collection('members').onSnapshot(snap => {
     state.members = snap.docs.map(x => ({id: x.id, data: x.data()}));
-    state.membersLoaded = true; renderViews();
-  }, onErr);
-  db.collection('settlements').onSnapshot(snap => {
+    state.membersLoaded = true; ok(); renderViews();
+  }, onErr));
+  subs.push(db.collection('settlements').onSnapshot(snap => {
     state.settlements = snap.docs.map(x => ({id: x.id, data: x.data()}));
-    state.loaded.set = true; done(); renderViews();
-  }, onErr);
+    state.loaded.set = true; ok(); done(); renderViews();
+  }, onErr));
+  if(state.team) subs.push(fs.doc('teams/' + state.team).onSnapshot(s => {
+    state.teamTreasurers = teamTreasurersOf(s.exists ? s.data() : null);
+    state.notifyUrl = notifyUrlOf(s.exists ? s.data() : null);
+    const changed = recomputeOwner();
+    renderWho(); if(changed) applyHash(); renderViews();
+  }, e => console.error(e)));
 }
+const docGen = {manual: -1, compare: -1};
+function syncManualSub(){
+  /* the treasurer-only pages (manual, comparison data) are read only while a treasurer is signed in */
+  if(!state.db) return;
+  if(!state.isOwner){
+    if(state.manualDoc || state.compareDoc){ state.manualDoc = null; state.manualEdit = false; state.compareDoc = null; state.compareMeta = null; }
+    return;
+  }
+  if(docGen.manual !== subGen){
+    docGen.manual = subGen;
+    subs.push(state.db.doc('pages/manual').onSnapshot(sn => { state.manualDoc = sn.exists ? sn.data() : null; renderDoc('manual'); },
+      e => { console.error(e); docGen.manual = -1; }));
+  }
+  if(docGen.compare !== subGen){
+    docGen.compare = subGen;
+    subs.push(state.db.doc('pages/compare').onSnapshot(sn => {
+      let o = null;
+      if(sn.exists){ try{ o = JSON.parse(sn.data().body); }catch(e){ o = null; } }
+      state.compareDoc = o && o.slots && typeof o.slots === 'object' ? o : null; state.compareMeta = sn.exists ? sn.data() : null;
+      renderCompare();
+    }, e => { console.error(e); docGen.compare = -1; }));
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && state.db && state.error){ retryN = 0; failedGen = -1; subscribe(state.db); }
+});
 
 $('#f-acct').innerHTML = '<option value="">選んでください</option>' + ACCOUNTS.map(a => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('');
 $('#f-date').value = todayStr();
@@ -1437,9 +1838,10 @@ function renderWho(){
   const el = $('#who');
   if(!state.user){ el.innerHTML = ''; return; }
   const code = (state.team && state.isOwner) ? '<button type="button" class="btn small ghost" data-act="changecode">合言葉を変更</button>' : '';
+  const rules = '<button type="button" class="linkbtn" data-act="rules-open">ルール・使い方を見る</button>';
   el.innerHTML = state.isOwner
-    ? '<span>会計係　' + esc(state.user.email) + '</span><span class="who-b">' + code + '<button type="button" class="btn small ghost" data-act="logout">ログアウト</button></span>'
-    : '<span></span><span class="who-b">' + code + '<button type="button" class="btn small ghost" data-act="login">会計係ログイン</button></span>';
+    ? '<span>会計係　' + esc(state.user.email) + '</span><span class="who-b">' + rules + code + '<button type="button" class="btn small ghost" data-act="logout">ログアウト</button></span>'
+    : '<span>' + rules + '</span><span class="who-b">' + code + '<button type="button" class="btn small ghost" data-act="login">会計係ログイン</button></span>';
 }
 function saveCode(){
   const v = nk($('#g-code').value);
@@ -1466,13 +1868,7 @@ async function openTeam(){
   state.db = {collection: n => fs.collection('teams/' + code + '/' + n), doc: p => fs.doc('teams/' + code + '/' + p)};
   state.teamTreasurers = teamTreasurersOf(snap.data()); state.notifyUrl = notifyUrlOf(snap.data()); recomputeOwner();
   setUrlTeam(code);
-  setGate(null); applyHash(); renderWho(); subscribe(state.db); renderViews();
-  fs.doc('teams/' + code).onSnapshot(s => {
-    state.teamTreasurers = teamTreasurersOf(s.exists ? s.data() : null);
-    state.notifyUrl = notifyUrlOf(s.exists ? s.data() : null);
-    const changed = recomputeOwner();
-    renderWho(); if(changed) applyHash(); renderViews();
-  }, e => console.error(e));
+  setGate(null); applyHash(); renderWho(); retryN = 0; failedGen = -1; subscribe(state.db); renderViews();
 }
 async function createTeam(){
   try{
@@ -1501,11 +1897,16 @@ async function loginTreasurer(){
   }
 }
 function onUser(u){
+  const changed = !state.user || state.user.uid !== u.uid;
   state.user = u;
   recomputeOwner();
   if(!started){ started = true; state.team = initialTeam(); renderWho(); openTeam(); return; }
   renderWho();
-  if(!state.db) openTeam(); else { applyHash(); renderViews(); }
+  if(!state.db) openTeam();
+  else{
+    if(changed){ retryN = 0; failedGen = -1; subscribe(state.db); }
+    applyHash(); renderViews();
+  }
 }
 (function bootFirebase(){
   if(!window.firebase || !FBC.apiKey || String(FBC.apiKey).indexOf('PASTE') >= 0){

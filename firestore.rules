@@ -1,0 +1,147 @@
+rules_version = '2';
+
+// BYB 立替精算のセキュリティルール。
+// Firebase コンソールの Firestore Database > ルール に貼り付けて「公開」します。
+// 最初の会計係（下の isOwner のメールアドレス）だけは、ここに書いておきます。
+// 次の会計係は、アプリの「管理」画面から追加できます（このファイルの書き換えは不要です）。
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verifiedEmail() {
+      return signedIn()
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '') != '';
+    }
+
+    // 最初の会計係（チームの作成ができる）。複数にするときは、['a@gmail.com', 'b@gmail.com'] のように , で区切る。
+    function isOwner() {
+      return verifiedEmail()
+        && request.auth.token.get('email', '') in ['kenjiokamura619@gmail.com'];
+    }
+
+    // 最初の会計係、またはアプリの「管理」画面で追加された会計係
+    function isTreasurer(team) {
+      return isOwner()
+        || (verifiedEmail()
+            && request.auth.token.get('email', '') in
+               get(/databases/$(database)/documents/teams/$(team)).data.get('treasurers', []));
+    }
+
+    // 合言葉（teams/合言葉）の文書が存在するチームだけ、読み書きできる
+    function teamExists(team) {
+      return exists(/databases/$(database)/documents/teams/$(team));
+    }
+
+    // 金額は1〜100万円。ただし、手持ちの銭湯券を使うだけの登録（銭湯代で bath あり）は 0 円でもよい
+    function validAmount() {
+      return request.resource.data.amount is int
+        && request.resource.data.amount >= 0
+        && request.resource.data.amount <= 1000000
+        && (request.resource.data.amount > 0
+            || (request.resource.data.account == '銭湯代'
+                && request.resource.data.get('bath', null) is map));
+    }
+
+    match /teams/{team} {
+      // 合言葉が存在するかの確認ができる（一覧は取れない）。作成は最初の会計係だけ。
+      allow get: if signedIn();
+      allow create: if isOwner();
+      // 会計係の一覧（treasurers）と、LINE通知のURL（notifyUrl）の変更は、会計係だけ
+      allow update: if isTreasurer(team)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['treasurers', 'notifyUrl'])
+        && request.resource.data.get('treasurers', []) is list
+        && request.resource.data.get('treasurers', []).size() <= 20
+        && (!('notifyUrl' in request.resource.data)
+            || (request.resource.data.notifyUrl is string && request.resource.data.notifyUrl.size() <= 300));
+      allow delete: if false;
+
+      // ルールのページ（アプリの使い方）。読めるのは全員、編集は会計係だけ
+      match /pages/rules {
+        allow read: if signedIn() && teamExists(team);
+        allow create, update: if teamExists(team) && isTreasurer(team)
+          && request.resource.data.keys().hasOnly(['body', 'updatedAt', 'updatedBy'])
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 8000;
+        allow delete: if false;
+      }
+
+      // 会計係マニュアル。読むのも編集するのも会計係だけ（マネージャーには見えません）
+      match /pages/manual {
+        allow read: if teamExists(team) && isTreasurer(team);
+        allow create, update: if teamExists(team) && isTreasurer(team)
+          && request.resource.data.keys().hasOnly(['body', 'updatedAt', 'updatedBy'])
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 20000;
+        allow delete: if false;
+      }
+
+      // 前年との比較のデータ（会計Excelの月ごとの合計）。読むのも編集するのも会計係だけ
+      match /pages/compare {
+        allow read: if teamExists(team) && isTreasurer(team);
+        allow create, update: if teamExists(team) && isTreasurer(team)
+          && request.resource.data.keys().hasOnly(['body', 'updatedAt', 'updatedBy'])
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 30000;
+        allow delete: if false;
+      }
+
+      // メンバー（立替を登録する人の名前の一覧）
+      match /members/{id} {
+        allow read: if signedIn() && teamExists(team);
+        allow create: if signedIn() && teamExists(team)
+          && request.resource.data.keys().hasOnly(['name', 'uid', 'createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 20
+          && request.resource.data.uid == request.auth.uid;
+        allow update: if false;
+        allow delete: if teamExists(team) && isTreasurer(team);
+      }
+
+      // 立替
+      match /expenses/{id} {
+        allow read: if signedIn() && teamExists(team);
+        allow create: if signedIn() && teamExists(team)
+          && validAmount()
+          && request.resource.data.uid == request.auth.uid;
+        // 勘定科目の変更は会計係だけ
+        allow update: if teamExists(team) && isTreasurer(team);
+        // 削除は、登録した端末か会計係
+        allow delete: if teamExists(team)
+          && (isTreasurer(team) || resource.data.uid == request.auth.uid);
+      }
+
+      // レシート写真
+      match /receipts/{id} {
+        allow read: if signedIn() && teamExists(team);
+        allow create: if signedIn() && teamExists(team)
+          && request.resource.data.uid == request.auth.uid;
+        allow update: if false;
+        allow delete: if teamExists(team)
+          && (isTreasurer(team) || resource.data.uid == request.auth.uid);
+      }
+
+      // 返済の記録
+      match /settlements/{id} {
+        allow read: if signedIn() && teamExists(team);
+        // 会計係の確認（treasurerAt）は、会計係だけが付けられる
+        allow create: if signedIn() && teamExists(team)
+          && (isTreasurer(team) || request.resource.data.treasurerAt == null);
+        allow update: if teamExists(team) && (
+          (isTreasurer(team)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['treasurerAt']))
+          || (signedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerAt']))
+        );
+        // 取り消しは会計係か、会計係がまだ確認していない記録だけ
+        allow delete: if teamExists(team)
+          && (isTreasurer(team) || resource.data.treasurerAt == null);
+      }
+    }
+  }
+}
